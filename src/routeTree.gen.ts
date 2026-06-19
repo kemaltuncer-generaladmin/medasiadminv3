@@ -9,38 +9,316 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as NoAccessRouteImport } from './routes/no-access'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
+import { Route as AuthenticatedAdminVeriGezginiRouteImport } from './routes/_authenticated/admin/veri-gezgini'
+import { Route as AuthenticatedAdminSourcebaseRouteImport } from './routes/_authenticated/admin/sourcebase'
+import { Route as AuthenticatedAdminServisSagligiRouteImport } from './routes/_authenticated/admin/servis-sagligi'
+import { Route as AuthenticatedAdminSatinAlmalarRouteImport } from './routes/_authenticated/admin/satin-almalar'
+import { Route as AuthenticatedAdminRecallRouteImport } from './routes/_authenticated/admin/recall'
+import { Route as AuthenticatedAdminQlinikRouteImport } from './routes/_authenticated/admin/qlinik'
+import { Route as AuthenticatedAdminPraticaseRouteImport } from './routes/_authenticated/admin/praticase'
+import { Route as AuthenticatedAdminMedasipayRouteImport } from './routes/_authenticated/admin/medasipay'
+import { Route as AuthenticatedAdminKullanicilarRouteImport } from './routes/_authenticated/admin/kullanicilar'
+import { Route as AuthenticatedAdminJobQueueRouteImport } from './routes/_authenticated/admin/job-queue'
+import { Route as AuthenticatedAdminIcerikSagligiRouteImport } from './routes/_authenticated/admin/icerik-sagligi'
+import { Route as AuthenticatedAdminGenelBakisRouteImport } from './routes/_authenticated/admin/genel-bakis'
+import { Route as AuthenticatedAdminDestekRouteImport } from './routes/_authenticated/admin/destek'
+import { Route as AuthenticatedAdminCuzdanRouteImport } from './routes/_authenticated/admin/cuzdan'
+import { Route as AuthenticatedAdminAuditRouteImport } from './routes/_authenticated/admin/audit'
+import { Route as AuthenticatedAdminAiMaliyetleriRouteImport } from './routes/_authenticated/admin/ai-maliyetleri'
 
+const NoAccessRoute = NoAccessRouteImport.update({
+  id: '/no-access',
+  path: '/no-access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminVeriGezginiRoute =
+  AuthenticatedAdminVeriGezginiRouteImport.update({
+    id: '/veri-gezgini',
+    path: '/veri-gezgini',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminSourcebaseRoute =
+  AuthenticatedAdminSourcebaseRouteImport.update({
+    id: '/sourcebase',
+    path: '/sourcebase',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminServisSagligiRoute =
+  AuthenticatedAdminServisSagligiRouteImport.update({
+    id: '/servis-sagligi',
+    path: '/servis-sagligi',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminSatinAlmalarRoute =
+  AuthenticatedAdminSatinAlmalarRouteImport.update({
+    id: '/satin-almalar',
+    path: '/satin-almalar',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminRecallRoute =
+  AuthenticatedAdminRecallRouteImport.update({
+    id: '/recall',
+    path: '/recall',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminQlinikRoute =
+  AuthenticatedAdminQlinikRouteImport.update({
+    id: '/qlinik',
+    path: '/qlinik',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminPraticaseRoute =
+  AuthenticatedAdminPraticaseRouteImport.update({
+    id: '/praticase',
+    path: '/praticase',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminMedasipayRoute =
+  AuthenticatedAdminMedasipayRouteImport.update({
+    id: '/medasipay',
+    path: '/medasipay',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminKullanicilarRoute =
+  AuthenticatedAdminKullanicilarRouteImport.update({
+    id: '/kullanicilar',
+    path: '/kullanicilar',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminJobQueueRoute =
+  AuthenticatedAdminJobQueueRouteImport.update({
+    id: '/job-queue',
+    path: '/job-queue',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminIcerikSagligiRoute =
+  AuthenticatedAdminIcerikSagligiRouteImport.update({
+    id: '/icerik-sagligi',
+    path: '/icerik-sagligi',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminGenelBakisRoute =
+  AuthenticatedAdminGenelBakisRouteImport.update({
+    id: '/genel-bakis',
+    path: '/genel-bakis',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminDestekRoute =
+  AuthenticatedAdminDestekRouteImport.update({
+    id: '/destek',
+    path: '/destek',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminCuzdanRoute =
+  AuthenticatedAdminCuzdanRouteImport.update({
+    id: '/cuzdan',
+    path: '/cuzdan',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminAuditRoute = AuthenticatedAdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
+const AuthenticatedAdminAiMaliyetleriRoute =
+  AuthenticatedAdminAiMaliyetleriRouteImport.update({
+    id: '/ai-maliyetleri',
+    path: '/ai-maliyetleri',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/no-access': typeof NoAccessRoute
+  '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/admin/ai-maliyetleri': typeof AuthenticatedAdminAiMaliyetleriRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/cuzdan': typeof AuthenticatedAdminCuzdanRoute
+  '/admin/destek': typeof AuthenticatedAdminDestekRoute
+  '/admin/genel-bakis': typeof AuthenticatedAdminGenelBakisRoute
+  '/admin/icerik-sagligi': typeof AuthenticatedAdminIcerikSagligiRoute
+  '/admin/job-queue': typeof AuthenticatedAdminJobQueueRoute
+  '/admin/kullanicilar': typeof AuthenticatedAdminKullanicilarRoute
+  '/admin/medasipay': typeof AuthenticatedAdminMedasipayRoute
+  '/admin/praticase': typeof AuthenticatedAdminPraticaseRoute
+  '/admin/qlinik': typeof AuthenticatedAdminQlinikRoute
+  '/admin/recall': typeof AuthenticatedAdminRecallRoute
+  '/admin/satin-almalar': typeof AuthenticatedAdminSatinAlmalarRoute
+  '/admin/servis-sagligi': typeof AuthenticatedAdminServisSagligiRoute
+  '/admin/sourcebase': typeof AuthenticatedAdminSourcebaseRoute
+  '/admin/veri-gezgini': typeof AuthenticatedAdminVeriGezginiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/no-access': typeof NoAccessRoute
+  '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/admin/ai-maliyetleri': typeof AuthenticatedAdminAiMaliyetleriRoute
+  '/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/admin/cuzdan': typeof AuthenticatedAdminCuzdanRoute
+  '/admin/destek': typeof AuthenticatedAdminDestekRoute
+  '/admin/genel-bakis': typeof AuthenticatedAdminGenelBakisRoute
+  '/admin/icerik-sagligi': typeof AuthenticatedAdminIcerikSagligiRoute
+  '/admin/job-queue': typeof AuthenticatedAdminJobQueueRoute
+  '/admin/kullanicilar': typeof AuthenticatedAdminKullanicilarRoute
+  '/admin/medasipay': typeof AuthenticatedAdminMedasipayRoute
+  '/admin/praticase': typeof AuthenticatedAdminPraticaseRoute
+  '/admin/qlinik': typeof AuthenticatedAdminQlinikRoute
+  '/admin/recall': typeof AuthenticatedAdminRecallRoute
+  '/admin/satin-almalar': typeof AuthenticatedAdminSatinAlmalarRoute
+  '/admin/servis-sagligi': typeof AuthenticatedAdminServisSagligiRoute
+  '/admin/sourcebase': typeof AuthenticatedAdminSourcebaseRoute
+  '/admin/veri-gezgini': typeof AuthenticatedAdminVeriGezginiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/no-access': typeof NoAccessRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/_authenticated/admin/ai-maliyetleri': typeof AuthenticatedAdminAiMaliyetleriRoute
+  '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
+  '/_authenticated/admin/cuzdan': typeof AuthenticatedAdminCuzdanRoute
+  '/_authenticated/admin/destek': typeof AuthenticatedAdminDestekRoute
+  '/_authenticated/admin/genel-bakis': typeof AuthenticatedAdminGenelBakisRoute
+  '/_authenticated/admin/icerik-sagligi': typeof AuthenticatedAdminIcerikSagligiRoute
+  '/_authenticated/admin/job-queue': typeof AuthenticatedAdminJobQueueRoute
+  '/_authenticated/admin/kullanicilar': typeof AuthenticatedAdminKullanicilarRoute
+  '/_authenticated/admin/medasipay': typeof AuthenticatedAdminMedasipayRoute
+  '/_authenticated/admin/praticase': typeof AuthenticatedAdminPraticaseRoute
+  '/_authenticated/admin/qlinik': typeof AuthenticatedAdminQlinikRoute
+  '/_authenticated/admin/recall': typeof AuthenticatedAdminRecallRoute
+  '/_authenticated/admin/satin-almalar': typeof AuthenticatedAdminSatinAlmalarRoute
+  '/_authenticated/admin/servis-sagligi': typeof AuthenticatedAdminServisSagligiRoute
+  '/_authenticated/admin/sourcebase': typeof AuthenticatedAdminSourcebaseRoute
+  '/_authenticated/admin/veri-gezgini': typeof AuthenticatedAdminVeriGezginiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/no-access'
+    | '/admin'
+    | '/admin/ai-maliyetleri'
+    | '/admin/audit'
+    | '/admin/cuzdan'
+    | '/admin/destek'
+    | '/admin/genel-bakis'
+    | '/admin/icerik-sagligi'
+    | '/admin/job-queue'
+    | '/admin/kullanicilar'
+    | '/admin/medasipay'
+    | '/admin/praticase'
+    | '/admin/qlinik'
+    | '/admin/recall'
+    | '/admin/satin-almalar'
+    | '/admin/servis-sagligi'
+    | '/admin/sourcebase'
+    | '/admin/veri-gezgini'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/no-access'
+    | '/admin'
+    | '/admin/ai-maliyetleri'
+    | '/admin/audit'
+    | '/admin/cuzdan'
+    | '/admin/destek'
+    | '/admin/genel-bakis'
+    | '/admin/icerik-sagligi'
+    | '/admin/job-queue'
+    | '/admin/kullanicilar'
+    | '/admin/medasipay'
+    | '/admin/praticase'
+    | '/admin/qlinik'
+    | '/admin/recall'
+    | '/admin/satin-almalar'
+    | '/admin/servis-sagligi'
+    | '/admin/sourcebase'
+    | '/admin/veri-gezgini'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/no-access'
+    | '/_authenticated/admin'
+    | '/_authenticated/admin/ai-maliyetleri'
+    | '/_authenticated/admin/audit'
+    | '/_authenticated/admin/cuzdan'
+    | '/_authenticated/admin/destek'
+    | '/_authenticated/admin/genel-bakis'
+    | '/_authenticated/admin/icerik-sagligi'
+    | '/_authenticated/admin/job-queue'
+    | '/_authenticated/admin/kullanicilar'
+    | '/_authenticated/admin/medasipay'
+    | '/_authenticated/admin/praticase'
+    | '/_authenticated/admin/qlinik'
+    | '/_authenticated/admin/recall'
+    | '/_authenticated/admin/satin-almalar'
+    | '/_authenticated/admin/servis-sagligi'
+    | '/_authenticated/admin/sourcebase'
+    | '/_authenticated/admin/veri-gezgini'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  NoAccessRoute: typeof NoAccessRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/no-access': {
+      id: '/no-access'
+      path: '/no-access'
+      fullPath: '/no-access'
+      preLoaderRoute: typeof NoAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +326,189 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/veri-gezgini': {
+      id: '/_authenticated/admin/veri-gezgini'
+      path: '/veri-gezgini'
+      fullPath: '/admin/veri-gezgini'
+      preLoaderRoute: typeof AuthenticatedAdminVeriGezginiRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/sourcebase': {
+      id: '/_authenticated/admin/sourcebase'
+      path: '/sourcebase'
+      fullPath: '/admin/sourcebase'
+      preLoaderRoute: typeof AuthenticatedAdminSourcebaseRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/servis-sagligi': {
+      id: '/_authenticated/admin/servis-sagligi'
+      path: '/servis-sagligi'
+      fullPath: '/admin/servis-sagligi'
+      preLoaderRoute: typeof AuthenticatedAdminServisSagligiRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/satin-almalar': {
+      id: '/_authenticated/admin/satin-almalar'
+      path: '/satin-almalar'
+      fullPath: '/admin/satin-almalar'
+      preLoaderRoute: typeof AuthenticatedAdminSatinAlmalarRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/recall': {
+      id: '/_authenticated/admin/recall'
+      path: '/recall'
+      fullPath: '/admin/recall'
+      preLoaderRoute: typeof AuthenticatedAdminRecallRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/qlinik': {
+      id: '/_authenticated/admin/qlinik'
+      path: '/qlinik'
+      fullPath: '/admin/qlinik'
+      preLoaderRoute: typeof AuthenticatedAdminQlinikRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/praticase': {
+      id: '/_authenticated/admin/praticase'
+      path: '/praticase'
+      fullPath: '/admin/praticase'
+      preLoaderRoute: typeof AuthenticatedAdminPraticaseRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/medasipay': {
+      id: '/_authenticated/admin/medasipay'
+      path: '/medasipay'
+      fullPath: '/admin/medasipay'
+      preLoaderRoute: typeof AuthenticatedAdminMedasipayRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/kullanicilar': {
+      id: '/_authenticated/admin/kullanicilar'
+      path: '/kullanicilar'
+      fullPath: '/admin/kullanicilar'
+      preLoaderRoute: typeof AuthenticatedAdminKullanicilarRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/job-queue': {
+      id: '/_authenticated/admin/job-queue'
+      path: '/job-queue'
+      fullPath: '/admin/job-queue'
+      preLoaderRoute: typeof AuthenticatedAdminJobQueueRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/icerik-sagligi': {
+      id: '/_authenticated/admin/icerik-sagligi'
+      path: '/icerik-sagligi'
+      fullPath: '/admin/icerik-sagligi'
+      preLoaderRoute: typeof AuthenticatedAdminIcerikSagligiRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/genel-bakis': {
+      id: '/_authenticated/admin/genel-bakis'
+      path: '/genel-bakis'
+      fullPath: '/admin/genel-bakis'
+      preLoaderRoute: typeof AuthenticatedAdminGenelBakisRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/destek': {
+      id: '/_authenticated/admin/destek'
+      path: '/destek'
+      fullPath: '/admin/destek'
+      preLoaderRoute: typeof AuthenticatedAdminDestekRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/cuzdan': {
+      id: '/_authenticated/admin/cuzdan'
+      path: '/cuzdan'
+      fullPath: '/admin/cuzdan'
+      preLoaderRoute: typeof AuthenticatedAdminCuzdanRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/audit': {
+      id: '/_authenticated/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AuthenticatedAdminAuditRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/ai-maliyetleri': {
+      id: '/_authenticated/admin/ai-maliyetleri'
+      path: '/ai-maliyetleri'
+      fullPath: '/admin/ai-maliyetleri'
+      preLoaderRoute: typeof AuthenticatedAdminAiMaliyetleriRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
   }
 }
 
+interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminAiMaliyetleriRoute: typeof AuthenticatedAdminAiMaliyetleriRoute
+  AuthenticatedAdminAuditRoute: typeof AuthenticatedAdminAuditRoute
+  AuthenticatedAdminCuzdanRoute: typeof AuthenticatedAdminCuzdanRoute
+  AuthenticatedAdminDestekRoute: typeof AuthenticatedAdminDestekRoute
+  AuthenticatedAdminGenelBakisRoute: typeof AuthenticatedAdminGenelBakisRoute
+  AuthenticatedAdminIcerikSagligiRoute: typeof AuthenticatedAdminIcerikSagligiRoute
+  AuthenticatedAdminJobQueueRoute: typeof AuthenticatedAdminJobQueueRoute
+  AuthenticatedAdminKullanicilarRoute: typeof AuthenticatedAdminKullanicilarRoute
+  AuthenticatedAdminMedasipayRoute: typeof AuthenticatedAdminMedasipayRoute
+  AuthenticatedAdminPraticaseRoute: typeof AuthenticatedAdminPraticaseRoute
+  AuthenticatedAdminQlinikRoute: typeof AuthenticatedAdminQlinikRoute
+  AuthenticatedAdminRecallRoute: typeof AuthenticatedAdminRecallRoute
+  AuthenticatedAdminSatinAlmalarRoute: typeof AuthenticatedAdminSatinAlmalarRoute
+  AuthenticatedAdminServisSagligiRoute: typeof AuthenticatedAdminServisSagligiRoute
+  AuthenticatedAdminSourcebaseRoute: typeof AuthenticatedAdminSourcebaseRoute
+  AuthenticatedAdminVeriGezginiRoute: typeof AuthenticatedAdminVeriGezginiRoute
+}
+
+const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
+  {
+    AuthenticatedAdminAiMaliyetleriRoute: AuthenticatedAdminAiMaliyetleriRoute,
+    AuthenticatedAdminAuditRoute: AuthenticatedAdminAuditRoute,
+    AuthenticatedAdminCuzdanRoute: AuthenticatedAdminCuzdanRoute,
+    AuthenticatedAdminDestekRoute: AuthenticatedAdminDestekRoute,
+    AuthenticatedAdminGenelBakisRoute: AuthenticatedAdminGenelBakisRoute,
+    AuthenticatedAdminIcerikSagligiRoute: AuthenticatedAdminIcerikSagligiRoute,
+    AuthenticatedAdminJobQueueRoute: AuthenticatedAdminJobQueueRoute,
+    AuthenticatedAdminKullanicilarRoute: AuthenticatedAdminKullanicilarRoute,
+    AuthenticatedAdminMedasipayRoute: AuthenticatedAdminMedasipayRoute,
+    AuthenticatedAdminPraticaseRoute: AuthenticatedAdminPraticaseRoute,
+    AuthenticatedAdminQlinikRoute: AuthenticatedAdminQlinikRoute,
+    AuthenticatedAdminRecallRoute: AuthenticatedAdminRecallRoute,
+    AuthenticatedAdminSatinAlmalarRoute: AuthenticatedAdminSatinAlmalarRoute,
+    AuthenticatedAdminServisSagligiRoute: AuthenticatedAdminServisSagligiRoute,
+    AuthenticatedAdminSourcebaseRoute: AuthenticatedAdminSourcebaseRoute,
+    AuthenticatedAdminVeriGezginiRoute: AuthenticatedAdminVeriGezginiRoute,
+  }
+
+const AuthenticatedAdminRouteRouteWithChildren =
+  AuthenticatedAdminRouteRoute._addFileChildren(
+    AuthenticatedAdminRouteRouteChildren,
+  )
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  NoAccessRoute: NoAccessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
