@@ -17,22 +17,41 @@ import {
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  ssr: false,
-  beforeLoad: async ({ context }) => {
-    const user = (context as any).user;
-    if (!user) throw redirect({ to: "/auth" });
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (error || !data) {
-      throw redirect({ to: "/no-access" });
-    }
-  },
   component: AdminLayout,
 });
+
+function useAdminGuard() {
+  const navigate = useNavigate();
+  const [ok, setOk] = useState(false);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!active) return;
+      if (!u.user) {
+        navigate({ to: "/auth", replace: true });
+        return;
+      }
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", u.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (!active) return;
+      if (error || !data) {
+        navigate({ to: "/no-access", replace: true });
+        return;
+      }
+      setOk(true);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
+  return ok;
+}
+
 
 const groups = [
   {
