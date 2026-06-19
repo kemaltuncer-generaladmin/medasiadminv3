@@ -94,6 +94,5 @@ function VeriGezgini() {
         <EmptySchemaState note="Self-hosted Postgres bağlantısı bekleniyor. Bağlandığında bu sorgu canlı veriyi gösterecektir." />
       </SectionCard>
     </div>
-  ),
-});
+  );
 }
