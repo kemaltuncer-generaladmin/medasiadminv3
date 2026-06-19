@@ -88,6 +88,14 @@ const groups = [
 ] as const;
 
 function AdminLayout() {
+  const ok = useAdminGuard();
+  if (!ok) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+        Yetki kontrol ediliyor…
+      </div>
+    );
+  }
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -102,6 +110,7 @@ function AdminLayout() {
     </SidebarProvider>
   );
 }
+
 
 function AdminSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
