@@ -71,6 +71,24 @@ const PRESETS: Preset[] = [
     showsSubjectTopic: true,
   },
   {
+    id: "qlinik_tip_questions",
+    label: "Qlinik Tıp JSON",
+    schema: "public",
+    table: "questions",
+    baseDefaults: {
+      difficulty: "medium",
+      is_active: false,
+      is_user_generated: false,
+      access_disciplines: ["tip"],
+      tags: ["app:qlinik", "discipline:tip"],
+      metadata: { discipline: "tip", cognitive_level: "application", confidence: "high" },
+    },
+    rules:
+      "\nKURALLAR: Qlinik Tıp/TUS soru bankası. public.questions içine TASLAK olarak yazılır. subject, topic, text, options[5], correct_index, explanation, option_rationales[5] zorunlu. metadata.discipline=tip ve access_disciplines=[tip] panel tarafından damgalanır.",
+    showsSubjectTopic: true,
+    questionTarget: { bank: "qlinik", discipline: "tip" },
+  },
+  {
     id: "kamubase_questions",
     label: "KamuBase Soruları",
     schema: "kamubase",
@@ -242,19 +260,25 @@ function IceAktar() {
   const advTables = catalogQuery.data?.tables ?? [];
 
   const isQlinikQuestionImport = preset.questionTarget?.bank === "qlinik";
+  const taxonomyFilter =
+    preset.questionTarget?.bank === "qlinik" && preset.questionTarget.discipline ?
+      `discipline_code=eq.${preset.questionTarget.discipline}`
+    : "";
   const refTable =
     isKamubase ? "topic_tree"
     : isQlinikQuestionImport ? "qlinik_taxonomy"
     : table;
   const subjectsQ = useQuery({
-    queryKey: ["distinct", schema, refTable, "subject"],
-    queryFn: () => distinctValues({ schema, table: refTable, column: "subject" }),
+    queryKey: ["distinct", schema, refTable, "subject", taxonomyFilter],
+    queryFn: () =>
+      distinctValues({ schema, table: refTable, column: "subject", rawQuery: taxonomyFilter }),
     enabled: showsSubjectTopic && !!refTable,
     retry: false,
   });
   const topicsQ = useQuery({
-    queryKey: ["distinct", schema, refTable, "topic"],
-    queryFn: () => distinctValues({ schema, table: refTable, column: "topic" }),
+    queryKey: ["distinct", schema, refTable, "topic", taxonomyFilter],
+    queryFn: () =>
+      distinctValues({ schema, table: refTable, column: "topic", rawQuery: taxonomyFilter }),
     enabled: showsSubjectTopic && !!refTable,
     retry: false,
   });

@@ -130,18 +130,21 @@ export async function distinctValues({
   schema,
   table,
   column,
+  rawQuery = "",
   limit = 1000,
 }: {
   schema: AdminSchema;
   table: string;
   column: string;
+  rawQuery?: string;
   limit?: number;
 }) {
+  const query = [rawQuery, `${column}=not.is.null`, `limit=${limit}`].filter(Boolean).join("&");
   const rows = await selectRows({
     schema,
     table,
     select: column,
-    rawQuery: `${column}=not.is.null&limit=${limit}`,
+    rawQuery: query,
     limit,
   });
   return Array.from(

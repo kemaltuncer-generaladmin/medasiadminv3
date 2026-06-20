@@ -70,7 +70,12 @@ type BankCfg = {
   discipline?: string;
 };
 const BANKS: Record<string, BankCfg> = {
-  qlinik: { label: "Qlinik Tıp (TUS)", schema: "public" },
+  qlinik: {
+    label: "Qlinik Tıp (TUS)",
+    schema: "public",
+    filter: "or=(metadata->>discipline.eq.tip,metadata->>discipline.is.null)",
+    discipline: "tip",
+  },
   dis: {
     label: "Qlinik Diş (DUS)",
     schema: "public",
@@ -447,6 +452,7 @@ function QuestionEditor({
       if (bank.discipline) {
         fields.access_disciplines = [bank.discipline];
         fields.metadata = { discipline: bank.discipline };
+        fields.tags = ["app:qlinik", `discipline:${bank.discipline}`];
       }
       return auditedInsert({
         schema: bank.schema,
