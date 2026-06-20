@@ -6,7 +6,7 @@ import { requireAdmin } from "@/integrations/supabase/admin-middleware";
 // AI üretim sunucu geçidi (Vertex Gemini + OpenAI).
 //
 // v2'de servis hesabı anahtarı uygulamaya gömülüydü; web'de bu bir sunucu
-// secret'ıdır (GEMINI_SERVICE_ACCOUNT_JSON). Vertex erişim token'ı, Node
+// secret'ıdır (GEMINI_SERVICE_ACCOUNT_JSON veya base64 sürümü). Vertex erişim token'ı, Node
 // crypto ile RS256 imzalı JWT'den üretilir (v2 AIService'in birebir karşılığı,
 // Swift'teki elle ASN.1 ayrıştırma yerine PEM doğrudan kullanılır).
 // ---------------------------------------------------------------------------
@@ -22,8 +22,15 @@ type ServiceAccount = {
 };
 
 function serviceAccount(): ServiceAccount {
-  const raw = process.env.GEMINI_SERVICE_ACCOUNT_JSON;
-  if (!raw) throw new Error("GEMINI_SERVICE_ACCOUNT_JSON sunucu ortamında tanımlı değil.");
+  const raw =
+    process.env.GEMINI_SERVICE_ACCOUNT_JSON_BASE64 ?
+      Buffer.from(process.env.GEMINI_SERVICE_ACCOUNT_JSON_BASE64, "base64").toString("utf8")
+    : process.env.GEMINI_SERVICE_ACCOUNT_JSON;
+  if (!raw) {
+    throw new Error(
+      "GEMINI_SERVICE_ACCOUNT_JSON veya GEMINI_SERVICE_ACCOUNT_JSON_BASE64 sunucu ortamında tanımlı değil.",
+    );
+  }
   try {
     return JSON.parse(raw) as ServiceAccount;
   } catch {
