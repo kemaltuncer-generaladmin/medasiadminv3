@@ -18,6 +18,16 @@ export type ImportRowResult = {
   normalized: JsonObj;
 };
 
+export type QuestionImportTarget =
+  | { bank: "qlinik"; discipline?: "dis" | "hemsirelik" | "tip" }
+  | { bank: "kamubase" };
+
+export type QuestionImportLocks = {
+  subject?: string;
+  unit?: string;
+  topic?: string;
+};
+
 const AUTO_GEN = new Set(["id", "created_at", "updated_at"]);
 
 function isBool(c: ColumnMeta) {
@@ -141,6 +151,26 @@ export function validate(
   });
 }
 
+export function validateQuestionImport(
+  rows: JsonObj[],
+  columns: ColumnMeta[],
+  defaults: JsonObj,
+  target: QuestionImportTarget,
+  locks: QuestionImportLocks,
+): ImportRowResult[] {
+  return rows.map((raw, index) => {
+    const { row, issues } = normalizeQuestionImportRow(raw, target, locks);
+    const [result] = validate([row], columns, defaults);
+    const missingRequired = Array.from(new Set([...result.missingRequired, ...issues])).sort();
+    return {
+      ...result,
+      index,
+      valid: result.valid && missingRequired.length === 0,
+      missingRequired,
+    };
+  });
+}
+
 // --- Şablon + prompt üretimi (kopyalanıp otomasyona/AI'ya verilir) ---
 function placeholder(c: ColumnMeta): unknown {
   if (isBool(c)) return false;
@@ -193,6 +223,82 @@ ${tmpl}
 ${extra}`;
 }
 
+export function questionImportTemplate(
+  target: QuestionImportTarget,
+  locks: QuestionImportLocks = {},
+): unknown[] {
+  if (target.bank === "kamubase") {
+    return [
+      {
+        subject: locks.subject ?? "",
+        unit: locks.unit ?? "",
+        topic: locks.topic ?? "",
+        subtopic: locks.topic ?? "",
+        learning_objective: "",
+        difficulty: "medium",
+        text: "",
+        options: ["", "", "", "", ""],
+        correct_index: 0,
+        explanation: "",
+        option_rationales: ["", "", "", "", ""],
+      },
+    ];
+  }
+
+  const discipline = target.discipline;
+  return [
+    {
+      subject: locks.subject ?? "",
+      topic: locks.topic ?? "",
+      difficulty: "medium",
+      text: "",
+      options: ["", "", "", "", ""],
+      correct_index: 0,
+      explanation: "",
+      option_rationales: ["", "", "", "", ""],
+      tags: [],
+      metadata: {
+        subtopic: "",
+        question_type: "",
+        cognitive_level: "application",
+        confidence: "high",
+        ...(discipline ? { discipline } : {}),
+      },
+    },
+  ];
+}
+
+export function questionImportPrompt(
+  target: QuestionImportTarget,
+  count: number,
+  locks: QuestionImportLocks = {},
+): string {
+  const bankTitle =
+    target.bank === "kamubase" ? "KamuBase"
+    : target.discipline === "dis" ? "Qlinik Diş"
+    : target.discipline === "hemsirelik" ? "Qlinik Hemşirelik"
+    : "Qlinik Tıp";
+  const required =
+    target.bank === "kamubase"
+      ? "subject, unit, topic, subtopic, learning_objective, difficulty(easy|medium|hard), text, options(5 string), correct_index(0-4), explanation, option_rationales(5 dolu string)"
+      : "subject, topic, difficulty(easy|medium|hard), text, options(5 string), correct_index(0-4), explanation, option_rationales(5 dolu string), tags, metadata.subtopic";
+  const scope = [
+    locks.subject ? `Ders (subject HER kayıtta birebir bu olacak): "${locks.subject}"` : "",
+    locks.unit && target.bank === "kamubase" ? `Ünite (unit HER kayıtta birebir bu olacak): "${locks.unit}"` : "",
+    locks.topic ? `Konu (topic HER kayıtta birebir bu olacak): "${locks.topic}"` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return `${bankTitle} soru bankası için ${count} çoktan seçmeli soru üret ve AŞAĞIDAKİ JSON FORMATINI birebir doldur.
+SADECE geçerli bir JSON DİZİSİ döndür — markdown/kod bloğu/açıklama yazma. Türkçe üret.
+ZORUNLU ALANLAR: ${required}
+Tek doğru cevap; correct_index doğru şıkkın 0 tabanlı indeksi.
+${scope ? `${scope}\n` : ""}Sorular import sonrası TASLAK/PASİF olarak yazılacak; yayınlama ayrı onay adımıdır.
+
+FORMAT:
+${JSON.stringify(questionImportTemplate(target, locks), null, 2)}`;
+}
+
 // --- KamuBase satır normalizasyonu (yazmadan önce) ---
 function nonEmptyString(v: unknown): string | null {
   let s: string | null = null;
@@ -201,6 +307,130 @@ function nonEmptyString(v: unknown): string | null {
   else if (typeof v === "boolean") s = v ? "true" : "false";
   const t = (s ?? "").trim();
   return t === "" ? null : t;
+}
+
+function stringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((item) => nonEmptyString(item))
+    .filter((item): item is string => !!item);
+}
+
+function objectValue(v: unknown): JsonObj {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as JsonObj) : {};
+}
+
+function metadataString(row: JsonObj, key: string): string | null {
+  return nonEmptyString(objectValue(row.metadata)[key]);
+}
+
+function parseCorrectIndex(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return Math.trunc(v);
+  if (typeof v === "string" && v.trim() !== "") {
+    const parsed = Number(v.trim());
+    if (Number.isFinite(parsed)) return Math.trunc(parsed);
+  }
+  return null;
+}
+
+function normalizeQuestionImportRow(
+  input: JsonObj,
+  target: QuestionImportTarget,
+  locks: QuestionImportLocks,
+): { row: JsonObj; issues: string[] } {
+  const issues: string[] = [];
+  const subject = nonEmptyString(locks.subject) ?? nonEmptyString(input.subject) ?? "";
+  const unit = nonEmptyString(locks.unit) ?? nonEmptyString(input.unit) ?? "";
+  const topic = nonEmptyString(locks.topic) ?? nonEmptyString(input.topic) ?? "";
+  const subtopic =
+    nonEmptyString(input.subtopic) ?? metadataString(input, "subtopic") ?? (target.bank === "kamubase" ? topic : "");
+  const learningObjective =
+    nonEmptyString(input.learning_objective) ??
+    metadataString(input, "learning_objective") ??
+    metadataString(input, "kazanim") ??
+    "";
+  const difficulty = ["easy", "medium", "hard"].includes(
+    (nonEmptyString(input.difficulty) ?? "").toLowerCase(),
+  )
+    ? (nonEmptyString(input.difficulty) ?? "medium").toLowerCase()
+    : "medium";
+  const text = nonEmptyString(input.text) ?? "";
+  const options = stringArray(input.options);
+  const correctIndex = parseCorrectIndex(input.correct_index);
+  const explanation = nonEmptyString(input.explanation) ?? "";
+  const rationales = stringArray(input.option_rationales);
+
+  if (!subject) issues.push("ders (subject) boş");
+  if (!topic) issues.push("konu (topic) boş");
+  if (!text) issues.push("soru metni boş");
+  if (options.length !== 5) issues.push(`şık sayısı 5 olmalı (${options.length})`);
+  if (correctIndex === null) issues.push("correct_index eksik");
+  else if (correctIndex < 0 || correctIndex >= 5 || correctIndex >= Math.max(options.length, 1)) {
+    issues.push(`correct_index aralık dışı (${correctIndex})`);
+  }
+  if (!explanation) issues.push("açıklama boş");
+  if (rationales.length !== 5 || rationales.some((item) => !item.trim())) {
+    issues.push("şık gerekçeleri (option_rationales) 5 dolu metin olmalı");
+  }
+
+  if (target.bank === "kamubase") {
+    if (!unit) issues.push("ünite (unit) boş");
+    if (!learningObjective) issues.push("kazanım (learning_objective) boş");
+    return {
+      row: normalizeKamubaseRow({
+        ...input,
+        exam: "KPSS",
+        subject,
+        unit,
+        topic,
+        subtopic,
+        learning_objective:
+          learningObjective || (topic ? `${topic} konusunu kavrar ve soruları doğru çözer.` : ""),
+        difficulty,
+        text,
+        options,
+        correct_index: correctIndex ?? 0,
+        explanation,
+        option_rationales: rationales,
+        is_active: false,
+        is_user_generated: false,
+        source_file_name: nonEmptyString(input.source_file_name) ?? KAMUBASE_IMPORT_SOURCE,
+      }),
+      issues,
+    };
+  }
+
+  const metadata: JsonObj = { ...objectValue(input.metadata) };
+  setIfMissing(metadata, "subtopic", subtopic);
+  setIfMissing(metadata, "question_type", nonEmptyString(metadata.question_type) ?? "");
+  setIfMissing(metadata, "cognitive_level", nonEmptyString(metadata.cognitive_level) ?? "application");
+  setIfMissing(metadata, "confidence", nonEmptyString(metadata.confidence) ?? "high");
+  setIfMissing(metadata, "source", "json_import");
+  if (target.discipline) setIfMissing(metadata, "discipline", target.discipline);
+
+  const tags = new Set(stringArray(input.tags));
+  tags.add("app:qlinik");
+  if (target.discipline) tags.add(`discipline:${target.discipline}`);
+
+  const row: JsonObj = {
+    ...input,
+    subject,
+    topic,
+    difficulty,
+    text,
+    options,
+    correct_index: correctIndex ?? 0,
+    explanation,
+    option_rationales: rationales,
+    tags: Array.from(tags),
+    metadata,
+    is_active: false,
+    is_user_generated: false,
+    source_file_id: nonEmptyString(input.source_file_id) ?? "json_import",
+    source_file_name: nonEmptyString(input.source_file_name) ?? "json_import",
+  };
+  if (target.discipline) row.access_disciplines = [target.discipline];
+  return { row, issues };
 }
 function setIfMissing(row: JsonObj, key: string, value: unknown) {
   const cur = row[key];

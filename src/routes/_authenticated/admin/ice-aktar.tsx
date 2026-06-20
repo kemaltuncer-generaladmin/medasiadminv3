@@ -18,11 +18,15 @@ import { schemaCatalogFn, type ColumnMeta } from "@/lib/schema-catalog-server";
 import {
   parseRows,
   validate,
+  validateQuestionImport,
   template,
   buildPrompt,
+  questionImportPrompt,
+  questionImportTemplate,
   normalizeKamubaseRow,
   type ImportRowResult,
   type JsonObj,
+  type QuestionImportTarget,
 } from "@/lib/json-import";
 import type { AdminSchema } from "@/lib/admin-config";
 import { Input } from "@/components/ui/input";
@@ -52,6 +56,7 @@ type Preset = {
   baseDefaults: JsonObj;
   rules: string;
   showsSubjectTopic?: boolean;
+  questionTarget?: QuestionImportTarget;
 };
 
 const PRESETS: Preset[] = [
@@ -73,13 +78,54 @@ const PRESETS: Preset[] = [
     baseDefaults: {
       exam: "KPSS",
       difficulty: "medium",
-      is_active: true,
+      is_active: false,
       is_user_generated: false,
       tags: ["app:kamubase", "exam:kpss"],
     },
     rules:
       "\nKURALLAR: KamuBase KPSS soru bankası. Qlinik/public.questions kullanma. subject, unit, topic değerlerini kamubase.topic_tree canonical ağacından seç. subject, unit, topic, subtopic, learning_objective dolu olsun. options=5 string. correct_index 0-4. option_rationales 5 eleman. tags app:kamubase ve exam:kpss içersin. metadata object içinde unit, subtopic, kazanim/learning_objective, question_type, cognitive_level olsun.",
     showsSubjectTopic: true,
+    questionTarget: { bank: "kamubase" },
+  },
+  {
+    id: "qlinik_dis_questions",
+    label: "Qlinik Diş JSON",
+    schema: "public",
+    table: "questions",
+    baseDefaults: {
+      difficulty: "medium",
+      is_active: false,
+      is_user_generated: false,
+      access_disciplines: ["dis"],
+      tags: ["app:qlinik", "discipline:dis"],
+      metadata: { discipline: "dis", cognitive_level: "application", confidence: "high" },
+    },
+    rules:
+      "\nKURALLAR: Qlinik Diş/DUS soru bankası. public.questions içine TASLAK olarak yazılır. subject, topic, text, options[5], correct_index, explanation, option_rationales[5] zorunlu. metadata.discipline=dis ve access_disciplines=[dis] panel tarafından damgalanır.",
+    showsSubjectTopic: true,
+    questionTarget: { bank: "qlinik", discipline: "dis" },
+  },
+  {
+    id: "qlinik_hemsirelik_questions",
+    label: "Qlinik Hemşirelik JSON",
+    schema: "public",
+    table: "questions",
+    baseDefaults: {
+      difficulty: "medium",
+      is_active: false,
+      is_user_generated: false,
+      access_disciplines: ["hemsirelik"],
+      tags: ["app:qlinik", "discipline:hemsirelik"],
+      metadata: {
+        discipline: "hemsirelik",
+        cognitive_level: "application",
+        confidence: "high",
+      },
+    },
+    rules:
+      "\nKURALLAR: Qlinik Hemşirelik soru bankası. public.questions içine TASLAK olarak yazılır. subject, topic, text, options[5], correct_index, explanation, option_rationales[5] zorunlu. metadata.discipline=hemsirelik ve access_disciplines=[hemsirelik] panel tarafından damgalanır.",
+    showsSubjectTopic: true,
+    questionTarget: { bank: "qlinik", discipline: "hemsirelik" },
   },
   {
     id: "question_bank",
@@ -169,6 +215,7 @@ function IceAktar() {
   const preset = PRESETS.find((p) => p.id === presetId)!;
   const isAdvanced = preset.id === "advanced";
   const isKamubase = preset.id === "kamubase_questions";
+  const isQuestionImport = !!preset.questionTarget;
   const schema = isAdvanced ? advSchema : preset.schema;
   const table = isAdvanced ? advTable.trim() : preset.table;
   const showsSubjectTopic = !isAdvanced && !!preset.showsSubjectTopic;
@@ -194,7 +241,11 @@ function IceAktar() {
   const columns: ColumnMeta[] = catalogQuery.data?.columns ?? [];
   const advTables = catalogQuery.data?.tables ?? [];
 
-  const refTable = isKamubase ? "topic_tree" : table;
+  const isQlinikQuestionImport = preset.questionTarget?.bank === "qlinik";
+  const refTable =
+    isKamubase ? "topic_tree"
+    : isQlinikQuestionImport ? "qlinik_taxonomy"
+    : table;
   const subjectsQ = useQuery({
     queryKey: ["distinct", schema, refTable, "subject"],
     queryFn: () => distinctValues({ schema, table: refTable, column: "subject" }),
@@ -225,6 +276,15 @@ function IceAktar() {
     return d;
   }, [preset, subject, unit, topic, isAdvanced, isKamubase, showsSubjectTopic]);
 
+  const importLocks = useMemo(
+    () => ({
+      subject: subject || undefined,
+      unit: unit || undefined,
+      topic: topic || undefined,
+    }),
+    [subject, unit, topic],
+  );
+
   const validCount = results?.filter((r) => r.valid).length ?? 0;
   const repairedCount =
     results?.filter((r) => r.filled.length || r.coerced.length || r.dropped.length).length ?? 0;
@@ -232,12 +292,24 @@ function IceAktar() {
 
   function copyPrompt() {
     navigator.clipboard
-      .writeText(buildPrompt(table, columns, defaults, Number(count) || 10, preset.rules))
+      .writeText(
+        preset.questionTarget ?
+          questionImportPrompt(preset.questionTarget, Number(count) || 10, importLocks)
+        : buildPrompt(table, columns, defaults, Number(count) || 10, preset.rules),
+      )
       .then(() => toast.success("Prompt panoya kopyalandı"));
   }
   function copyTemplate() {
     navigator.clipboard
-      .writeText(JSON.stringify(template(columns, defaults), null, 2))
+      .writeText(
+        JSON.stringify(
+          preset.questionTarget ? questionImportTemplate(preset.questionTarget, importLocks) : (
+            template(columns, defaults)
+          ),
+          null,
+          2,
+        ),
+      )
       .then(() => toast.success("Şablon panoya kopyalandı"));
   }
 
@@ -250,7 +322,11 @@ function IceAktar() {
       return;
     }
     setParseError(null);
-    setResults(validate(rows, columns, defaults));
+    setResults(
+      preset.questionTarget ?
+        validateQuestionImport(rows, columns, defaults, preset.questionTarget, importLocks)
+      : validate(rows, columns, defaults),
+    );
   }
 
   async function onFile(file: File) {
@@ -264,7 +340,11 @@ function IceAktar() {
       return;
     }
     setParseError(null);
-    setResults(validate(rows, columns, defaults));
+    setResults(
+      preset.questionTarget ?
+        validateQuestionImport(rows, columns, defaults, preset.questionTarget, importLocks)
+      : validate(rows, columns, defaults),
+    );
   }
 
   async function write() {
@@ -546,10 +626,25 @@ function IceAktar() {
             <p className="text-xs text-muted-foreground">
               Geçerli kayıtların tamamı yazılır; eksik alanlar varsayılanlarla tamamlanır, tanımsız
               anahtarlar atılır, tipler düzeltilir.
+              {isQuestionImport
+                ? " Soru JSON importunda 5 şık, doğru index, açıklama ve 5 şık gerekçesi katı kontrol edilir; kayıtlar pasif taslak olarak yazılır."
+                : ""}
               {isKamubase
                 ? " KamuBase satırları yazmadan önce canonical alanlar + tags + metadata ile normalize edilir."
                 : ""}
             </p>
+            {results.some((r) => !r.valid) ? (
+              <div className="max-h-36 space-y-1 overflow-auto rounded-md border border-destructive/30 bg-destructive/5 p-2">
+                {results
+                  .filter((r) => !r.valid)
+                  .slice(0, 8)
+                  .map((r) => (
+                    <div key={r.index} className="font-mono text-[10px] text-destructive">
+                      #{r.index + 1}: {r.missingRequired.join(", ") || "geçersiz kayıt"}
+                    </div>
+                  ))}
+              </div>
+            ) : null}
             <div className="flex items-center gap-3">
               <Button disabled={writing || validCount === 0} onClick={write}>
                 {writing ? (
