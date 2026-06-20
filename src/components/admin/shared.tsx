@@ -6,8 +6,16 @@ import { Database, RefreshCcw } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export function PageHeader({
-  title, description, icon: Icon, actions,
-}: { title: string; description?: string; icon?: LucideIcon; actions?: React.ReactNode }) {
+  title,
+  description,
+  icon: Icon,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  icon?: LucideIcon;
+  actions?: React.ReactNode;
+}) {
   return (
     <div className="flex items-start justify-between gap-4 mb-6">
       <div className="flex items-start gap-3">
@@ -41,7 +49,8 @@ export function EmptySchemaState({ note }: { note?: string }) {
         <div>
           <div className="font-medium">Bu yüzey canlı şemada yok veya yetkin yok</div>
           <p className="text-sm text-muted-foreground mt-1 max-w-md">
-            {note ?? "İlgili tablo/view bağlı veritabanında bulunamadı. Self-hosted Postgres bağlantısı kurulduktan sonra otomatik olarak veri görüntülenecektir."}
+            {note ??
+              "İlgili tablo/view bağlı veritabanında bulunamadı. Self-hosted Postgres bağlantısı kurulduktan sonra otomatik olarak veri görüntülenecektir."}
           </p>
         </div>
       </CardContent>
@@ -50,8 +59,16 @@ export function EmptySchemaState({ note }: { note?: string }) {
 }
 
 export function KpiCard({
-  label, value, hint, tone = "default",
-}: { label: string; value: string | number; hint?: string; tone?: "default" | "success" | "warning" | "destructive" | "info" }) {
+  label,
+  value,
+  hint,
+  tone = "default",
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+  tone?: "default" | "success" | "warning" | "destructive" | "info";
+}) {
   const toneMap: Record<string, string> = {
     default: "",
     success: "text-success",
@@ -73,24 +90,43 @@ export function KpiCard({
 export function StatusBadge({ status }: { status: string }) {
   const s = status.toLowerCase();
   const green = ["active", "completed", "published", "approved", "entitled", "paid"];
-  const amber = ["pending", "processing", "review", "queued", "receipt_uploaded", "payment_pending"];
+  const amber = [
+    "pending",
+    "processing",
+    "review",
+    "queued",
+    "receipt_uploaded",
+    "payment_pending",
+  ];
   const red = ["failed", "refunded", "cancelled", "revoked", "rejected", "error"];
   const gray = ["draft", "inactive", "archived"];
   const cls = green.some((x) => s.includes(x))
     ? "bg-success/15 text-success border-success/30"
     : amber.some((x) => s.includes(x))
-    ? "bg-warning/15 text-warning border-warning/30"
-    : red.some((x) => s.includes(x))
-    ? "bg-destructive/15 text-destructive border-destructive/30"
-    : gray.some((x) => s.includes(x))
-    ? "bg-muted text-muted-foreground border-border"
-    : "bg-accent text-accent-foreground border-border";
-  return <Badge variant="outline" className={cn("font-normal", cls)}>{status}</Badge>;
+      ? "bg-warning/15 text-warning border-warning/30"
+      : red.some((x) => s.includes(x))
+        ? "bg-destructive/15 text-destructive border-destructive/30"
+        : gray.some((x) => s.includes(x))
+          ? "bg-muted text-muted-foreground border-border"
+          : "bg-accent text-accent-foreground border-border";
+  return (
+    <Badge variant="outline" className={cn("font-normal", cls)}>
+      {status}
+    </Badge>
+  );
 }
 
 export function SectionCard({
-  title, description, children, actions,
-}: { title: string; description?: string; children: React.ReactNode; actions?: React.ReactNode }) {
+  title,
+  description,
+  children,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">

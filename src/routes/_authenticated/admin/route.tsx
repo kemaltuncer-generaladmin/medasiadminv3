@@ -2,17 +2,54 @@ import { createFileRoute, Outlet, Link, useRouterState, useNavigate } from "@tan
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
-  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger,
-  SidebarHeader, SidebarFooter,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarHeader,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  LayoutDashboard, Users, Wallet, ShoppingBag, Receipt, LifeBuoy,
-  HelpCircle, Database, Stethoscope, Brain, Coins, ListChecks, Heart,
-  Activity, FileSearch, Table2, Search, RefreshCcw, AlertTriangle, LogOut, ShieldCheck,
+  LayoutDashboard,
+  Users,
+  Wallet,
+  ShoppingBag,
+  Receipt,
+  LifeBuoy,
+  HelpCircle,
+  Database,
+  Stethoscope,
+  Brain,
+  Coins,
+  ListChecks,
+  Heart,
+  Activity,
+  FileSearch,
+  Table2,
+  Search,
+  RefreshCcw,
+  AlertTriangle,
+  LogOut,
+  ShieldCheck,
+  BellRing,
+  Boxes,
+  Sparkles,
+  Wand2,
+  Layers,
+  Upload,
+  FileText,
+  Megaphone,
+  BarChart3,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,7 +89,6 @@ function useAdminGuard() {
   return ok;
 }
 
-
 const groups = [
   {
     label: "Genel",
@@ -62,7 +98,8 @@ const groups = [
       { to: "/admin/cuzdan", label: "Cüzdan & Haklar", icon: Wallet },
       { to: "/admin/satin-almalar", label: "Satın Almalar & Katalog", icon: ShoppingBag },
       { to: "/admin/medasipay", label: "MedAsiPay / Dekontlar", icon: Receipt },
-      { to: "/admin/destek", label: "Destek & Bildirimler", icon: LifeBuoy },
+      { to: "/admin/destek", label: "Destek Kutusu", icon: LifeBuoy },
+      { to: "/admin/bildirimler", label: "Bildirim & Duyuru", icon: BellRing },
     ],
   },
   {
@@ -75,14 +112,36 @@ const groups = [
     ],
   },
   {
+    label: "İçerik & Kalite",
+    items: [
+      { to: "/admin/vakalar", label: "Vakalar", icon: Stethoscope },
+      { to: "/admin/vaka-uretim", label: "Vaka Üretim", icon: Wand2 },
+      { to: "/admin/kaynaklar", label: "Kaynaklar", icon: Boxes },
+      { to: "/admin/ai-studio", label: "AI Stüdyo", icon: Sparkles },
+      { to: "/admin/toplu-uretim", label: "Toplu Üretim", icon: Layers },
+      { to: "/admin/ice-aktar", label: "İçe Aktar", icon: Upload },
+      { to: "/admin/prompts", label: "Prompt Kütüphanesi", icon: FileText },
+    ],
+  },
+  {
+    label: "Satış & Pazarlama",
+    items: [{ to: "/admin/marketing", label: "Banner & Bonus", icon: Megaphone }],
+  },
+  {
+    label: "İstatistik",
+    items: [{ to: "/admin/istatistik", label: "İstatistik", icon: BarChart3 }],
+  },
+  {
     label: "Operasyon",
     items: [
       { to: "/admin/ai-maliyetleri", label: "AI Maliyetleri", icon: Coins },
       { to: "/admin/job-queue", label: "Job Queue & Hatalar", icon: ListChecks },
       { to: "/admin/icerik-sagligi", label: "İçerik Sağlığı", icon: Heart },
       { to: "/admin/servis-sagligi", label: "Deploy / Servis Sağlığı", icon: Activity },
-      { to: "/admin/audit", label: "Audit Log", icon: FileSearch },
+      { to: "/admin/audit", label: "Denetim Kaydı", icon: FileSearch },
       { to: "/admin/veri-gezgini", label: "Veri Gezgini", icon: Table2 },
+      { to: "/admin/indirme", label: "İndirme", icon: Download },
+      { to: "/admin/pdf-cikti", label: "PDF Çıktı", icon: FileText },
     ],
   },
 ] as const;
@@ -111,7 +170,6 @@ function AdminLayout() {
   );
 }
 
-
 function AdminSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   return (
@@ -123,7 +181,9 @@ function AdminSidebar() {
           </div>
           <div className="text-sm font-semibold leading-tight">
             MedAsi
-            <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">God Mode Admin</div>
+            <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">
+              God Mode Admin
+            </div>
           </div>
         </div>
       </SidebarHeader>
@@ -191,7 +251,7 @@ function TopBar() {
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && q.trim()) {
-              navigate({ to: "/admin/kullanicilar", search: { q: q.trim() } as any });
+              navigate({ to: "/admin/kullanicilar", search: { q: q.trim() } as { q: string } });
             }
           }}
         />
@@ -200,7 +260,11 @@ function TopBar() {
         <Button variant="outline" size="sm" onClick={() => navigate({ to: "/admin/kullanicilar" })}>
           <Users className="h-4 w-4 mr-1.5" /> Kullanıcı Bul
         </Button>
-        <Button variant="outline" size="sm" onClick={() => toast.info("Cüzdan senkron RPC için canlı şema bağlantısı gerekir")}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => toast.info("Cüzdan senkron RPC için canlı şema bağlantısı gerekir")}
+        >
           <RefreshCcw className="h-4 w-4 mr-1.5" /> Cüzdan Senkron
         </Button>
         <Button variant="outline" size="sm" onClick={() => navigate({ to: "/admin/job-queue" })}>
@@ -209,7 +273,9 @@ function TopBar() {
         <Button variant="default" size="sm" onClick={() => navigate({ to: "/admin/veri-gezgini" })}>
           <Table2 className="h-4 w-4 mr-1.5" /> Veri Gezgini
         </Button>
-        <Badge variant="outline" className="ml-2">Salt-okunur</Badge>
+        <Badge variant="outline" className="ml-2">
+          Salt-okunur
+        </Badge>
       </div>
     </header>
   );

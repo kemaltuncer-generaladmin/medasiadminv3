@@ -27,11 +27,22 @@ function NoAccess() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground text-center">
-            Hesabınız aktif fakat <code className="font-mono">admin</code> yetkisi yok. Bir yönetici sizi <code className="font-mono">public.user_roles</code> tablosuna <code className="font-mono">admin</code> olarak eklemeli.
+            Hesabınız aktif fakat <code className="font-mono">admin</code> yetkisi yok. Bir yönetici
+            sizi <code className="font-mono">public.user_roles</code> tablosuna{" "}
+            <code className="font-mono">admin</code> olarak eklemeli.
           </p>
           <div className="flex gap-2 justify-center">
-            <Button asChild variant="outline"><Link to="/auth">Tekrar Giriş</Link></Button>
-            <Button onClick={async () => { await supabase.auth.signOut(); window.location.href = "/auth"; }}>Çıkış</Button>
+            <Button asChild variant="outline">
+              <Link to="/auth">Tekrar Giriş</Link>
+            </Button>
+            <Button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = "/auth";
+              }}
+            >
+              Çıkış
+            </Button>
           </div>
         </CardContent>
       </Card>
