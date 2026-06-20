@@ -73,19 +73,19 @@ const BANKS: Record<string, BankCfg> = {
   qlinik: {
     label: "Qlinik Tıp (TUS)",
     schema: "public",
-    filter: "or=(metadata->>discipline.eq.tip,metadata->>discipline.is.null)",
+    filter: "metadata->>discipline=eq.tip",
     discipline: "tip",
   },
   dis: {
     label: "Qlinik Diş (DUS)",
     schema: "public",
-    filter: "access_disciplines=cs.{dis}",
+    filter: "metadata->>discipline=eq.dis",
     discipline: "dis",
   },
   hemsirelik: {
     label: "Qlinik Hemşirelik",
     schema: "public",
-    filter: "access_disciplines=cs.{hemsirelik}",
+    filter: "metadata->>discipline=eq.hemsirelik",
     discipline: "hemsirelik",
   },
   kamubase: { label: "KamuBase", schema: "kamubase" },
