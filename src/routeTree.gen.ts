@@ -13,6 +13,7 @@ import { Route as NoAccessRouteImport } from './routes/no-access'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiQlinikPdfRouteImport } from './routes/api/qlinik-pdf'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedAdminVeriGezginiRouteImport } from './routes/_authenticated/admin/veri-gezgini'
 import { Route as AuthenticatedAdminVakalarRouteImport } from './routes/_authenticated/admin/vakalar'
@@ -60,6 +61,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQlinikPdfRoute = ApiQlinikPdfRouteImport.update({
+  id: '/api/qlinik-pdf',
+  path: '/api/qlinik-pdf',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
@@ -240,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/no-access': typeof NoAccessRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/api/qlinik-pdf': typeof ApiQlinikPdfRoute
   '/admin/ai-maliyetleri': typeof AuthenticatedAdminAiMaliyetleriRoute
   '/admin/ai-studio': typeof AuthenticatedAdminAiStudioRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
@@ -274,6 +281,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/no-access': typeof NoAccessRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/api/qlinik-pdf': typeof ApiQlinikPdfRoute
   '/admin/ai-maliyetleri': typeof AuthenticatedAdminAiMaliyetleriRoute
   '/admin/ai-studio': typeof AuthenticatedAdminAiStudioRoute
   '/admin/audit': typeof AuthenticatedAdminAuditRoute
@@ -310,6 +318,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/no-access': typeof NoAccessRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/api/qlinik-pdf': typeof ApiQlinikPdfRoute
   '/_authenticated/admin/ai-maliyetleri': typeof AuthenticatedAdminAiMaliyetleriRoute
   '/_authenticated/admin/ai-studio': typeof AuthenticatedAdminAiStudioRoute
   '/_authenticated/admin/audit': typeof AuthenticatedAdminAuditRoute
@@ -346,6 +355,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/no-access'
     | '/admin'
+    | '/api/qlinik-pdf'
     | '/admin/ai-maliyetleri'
     | '/admin/ai-studio'
     | '/admin/audit'
@@ -380,6 +390,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/no-access'
     | '/admin'
+    | '/api/qlinik-pdf'
     | '/admin/ai-maliyetleri'
     | '/admin/ai-studio'
     | '/admin/audit'
@@ -415,6 +426,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/no-access'
     | '/_authenticated/admin'
+    | '/api/qlinik-pdf'
     | '/_authenticated/admin/ai-maliyetleri'
     | '/_authenticated/admin/ai-studio'
     | '/_authenticated/admin/audit'
@@ -450,6 +462,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   NoAccessRoute: typeof NoAccessRoute
+  ApiQlinikPdfRoute: typeof ApiQlinikPdfRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -480,6 +493,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/qlinik-pdf': {
+      id: '/api/qlinik-pdf'
+      path: '/api/qlinik-pdf'
+      fullPath: '/api/qlinik-pdf'
+      preLoaderRoute: typeof ApiQlinikPdfRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -772,6 +792,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   NoAccessRoute: NoAccessRoute,
+  ApiQlinikPdfRoute: ApiQlinikPdfRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

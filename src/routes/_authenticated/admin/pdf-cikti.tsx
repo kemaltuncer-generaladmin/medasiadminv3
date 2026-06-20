@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { FileText, Loader2, Printer, Search } from "lucide-react";
+import { Download, FileText, Loader2, Printer, Search } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/admin/shared";
 import { selectRows, type JsonRow } from "@/lib/supabase-rest";
+import { qlinikPdfFn } from "@/lib/qlinik-pdf-server";
+import type { Discipline } from "@/lib/qlinik-pdf-template";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -81,60 +83,121 @@ function PdfCikti() {
   );
 }
 
+const DISCIPLINES: { value: Discipline; label: string }[] = [
+  { value: "tip", label: "Tıp (TUS)" },
+  { value: "dis", label: "Diş (DUS)" },
+  { value: "hemsirelik", label: "Hemşirelik" },
+  { value: "vet", label: "Veteriner" },
+  { value: "saglik", label: "Sağlık (genel)" },
+];
+
+function openHtmlForPrint(html: string) {
+  const w = window.open("", "_blank");
+  if (!w) {
+    toast.error("Yazdırma penceresi açılamadı (popup engelli olabilir).");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  setTimeout(() => w.print(), 400);
+}
+
+function downloadBase64Pdf(filename: string, base64: string) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
 function QuestionsExport() {
+  const [discipline, setDiscipline] = useState<Discipline>("tip");
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
+  const [difficulty, setDifficulty] = useState("all");
   const [limit, setLimit] = useState("50");
   const [withAnswers, setWithAnswers] = useState("1");
+  const [userName, setUserName] = useState("");
+  const [exam, setExam] = useState("");
+  const [documentId, setDocumentId] = useState("");
 
   const mut = useMutation({
-    mutationFn: async () => {
-      const parts = ["order=created_at.desc", "is_active=eq.true"];
-      if (subject.trim()) parts.push(`subject=ilike.*${subject.trim()}*`);
-      if (topic.trim()) parts.push(`topic=ilike.*${topic.trim()}*`);
-      const r = await selectRows({
-        schema: "public",
-        table: "questions",
-        select: "id,subject,topic,difficulty,text,options,correct_index,explanation",
-        rawQuery: parts.join("&"),
-        limit: Math.min(500, Number(limit) || 50),
-      });
-      return r.data;
-    },
-    onSuccess: (rows) => {
-      if (rows.length === 0) {
-        toast.error("Soru bulunamadı.");
+    mutationFn: (format: "pdf" | "html") =>
+      qlinikPdfFn({
+        data: {
+          discipline,
+          subject: subject.trim() || undefined,
+          topic: topic.trim() || undefined,
+          difficulty: difficulty === "all" ? undefined : difficulty,
+          limit: Number(limit) || 50,
+          withAnswers: withAnswers === "1",
+          format,
+          meta: {
+            userName: userName.trim() || undefined,
+            exam: exam.trim() || undefined,
+            documentId: documentId.trim() || undefined,
+          },
+        },
+      }),
+    onSuccess: (res) => {
+      if (res.questionCount === 0) {
+        toast.error("Filtreye uygun soru bulunamadı.");
         return;
       }
-      const showAns = withAnswers === "1";
-      const body = rows
-        .map((q, i) => {
-          const opts = Array.isArray(q.options) ? (q.options as unknown[]) : [];
-          const correct = Number(q.correct_index ?? -1);
-          return `<div class="q">
-          <div class="q-head">#${i + 1} · ${esc(q.subject)} / ${esc(q.topic)} · ${esc(q.difficulty)}</div>
-          <div class="q-text">${esc(q.text)}</div>
-          ${opts.map((o, j) => `<div class="opt${showAns && j === correct ? " correct" : ""}">${String.fromCharCode(65 + j)}) ${esc(typeof o === "string" ? o : JSON.stringify(o))}${showAns && j === correct ? " ✓" : ""}</div>`).join("")}
-          ${showAns && q.explanation ? `<div class="exp">${esc(q.explanation)}</div>` : ""}
-        </div>`;
-        })
-        .join("");
-      printHtml(
-        "Soru Çıktısı",
-        `<h1>Soru Çıktısı</h1><div class="meta">${rows.length} soru · ${new Date().toLocaleString("tr-TR")}${showAns ? " · cevap anahtarlı" : ""}</div>${body}`,
-      );
+      if (res.format === "pdf" && res.pdfBase64) {
+        downloadBase64Pdf(res.filename, res.pdfBase64);
+        toast.success(`${res.questionCount} soruluk PDF indirildi.`);
+      } else if (res.html) {
+        openHtmlForPrint(res.html);
+        toast.success(`${res.questionCount} soru hazırlandı — yazdır penceresinden PDF kaydedin.`);
+      }
     },
     onError: (e) => toast.error(String((e as Error).message).slice(0, 200)),
   });
 
   return (
-    <SectionCard title="Soru çıktısı" description="public.questions">
-      <div className="grid gap-3 md:grid-cols-4">
-        <Field label="Ders">
+    <SectionCard
+      title="Soru bankası çıktısı"
+      description="public.questions → A4 2×3 kart şablonu (Qlinik / Medasi)"
+    >
+      <div className="grid gap-3 md:grid-cols-3">
+        <Field label="Disiplin / Şablon">
+          <Select value={discipline} onValueChange={(v) => setDiscipline(v as Discipline)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DISCIPLINES.map((d) => (
+                <SelectItem key={d.value} value={d.value}>
+                  {d.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Ders / Branş">
           <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
         </Field>
         <Field label="Konu">
           <Input value={topic} onChange={(e) => setTopic(e.target.value)} />
+        </Field>
+        <Field label="Zorluk">
+          <Select value={difficulty} onValueChange={setDifficulty}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tümü</SelectItem>
+              <SelectItem value="easy">Kolay</SelectItem>
+              <SelectItem value="medium">Orta</SelectItem>
+              <SelectItem value="hard">Zor</SelectItem>
+            </SelectContent>
+          </Select>
         </Field>
         <Field label="Adet">
           <Input value={limit} onChange={(e) => setLimit(e.target.value)} inputMode="numeric" />
@@ -151,14 +214,39 @@ function QuestionsExport() {
           </Select>
         </Field>
       </div>
-      <Button className="mt-4" disabled={mut.isPending} onClick={() => mut.mutate()}>
-        {mut.isPending ? (
-          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-        ) : (
-          <Printer className="mr-1.5 h-4 w-4" />
-        )}{" "}
-        PDF / Yazdır
-      </Button>
+
+      <p className="mt-4 text-xs font-medium text-muted-foreground">
+        Kişiye özel (header chip + filigran)
+      </p>
+      <div className="mt-1.5 grid gap-3 md:grid-cols-3">
+        <Field label="Kullanıcı adı soyadı">
+          <Input value={userName} onChange={(e) => setUserName(e.target.value)} />
+        </Field>
+        <Field label="Sınav">
+          <Input value={exam} onChange={(e) => setExam(e.target.value)} placeholder="TUS / DUS …" />
+        </Field>
+        <Field label="Belge ID">
+          <Input
+            value={documentId}
+            onChange={(e) => setDocumentId(e.target.value)}
+            placeholder="opsiyonel"
+          />
+        </Field>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button disabled={mut.isPending} onClick={() => mut.mutate("pdf")}>
+          {mut.isPending ? (
+            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-1.5 h-4 w-4" />
+          )}{" "}
+          PDF indir
+        </Button>
+        <Button variant="outline" disabled={mut.isPending} onClick={() => mut.mutate("html")}>
+          <Printer className="mr-1.5 h-4 w-4" /> Önizle / Yazdır
+        </Button>
+      </div>
     </SectionCard>
   );
 }
