@@ -56,12 +56,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/qlinik")({
   component: Qlinik,
 });
 
 const DIFFICULTIES = ["easy", "medium", "hard"];
+
+// Canlı sorularda kullanılan standart görünürlük listesi (her disipline açık).
+const ACCESS_ALL = [
+  "tip",
+  "dis",
+  "eczacilik",
+  "hemsirelik",
+  "ebelik",
+  "saglik_bilimleri",
+  "meslek_onlisans",
+  "mezun",
+  "diger",
+];
 
 type BankCfg = {
   label: string;
@@ -88,24 +102,46 @@ const BANKS: Record<string, BankCfg> = {
     filter: "metadata->>discipline=eq.hemsirelik",
     discipline: "hemsirelik",
   },
+  vet: {
+    label: "Qlinik Vet",
+    schema: "public",
+    filter: "metadata->>discipline=eq.vet",
+    discipline: "vet",
+  },
   kamubase: { label: "KamuBase", schema: "kamubase" },
 };
 
 function Qlinik() {
+  const [bankKey, setBankKey] = useState("qlinik");
+  const bank = BANKS[bankKey];
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Soru Bankası"
-        description="public.questions yönetimi + sourcebase.candidate_questions inceleme kuyruğu"
+        description="Disiplin bazlı soru yönetimi + sourcebase.candidate_questions inceleme kuyruğu"
         icon={HelpCircle}
       />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <CountKpi label="Canlı soru" rawQuery="is_active=eq.true" tone="success" />
-        <CountKpi label="Pasif soru" rawQuery="is_active=eq.false" tone="warning" />
-        <CountKpi label="Kullanıcı üretimi" rawQuery="is_user_generated=eq.true" />
-        <CountTaxonomy />
+      {/* Disiplin/bank seçici — tüm sayfayı yönetir */}
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(BANKS).map(([k, b]) => (
+          <button
+            key={k}
+            onClick={() => setBankKey(k)}
+            className={cn(
+              "rounded-full px-3.5 py-1.5 text-xs font-semibold transition",
+              bankKey === k
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/70",
+            )}
+          >
+            {b.label}
+          </button>
+        ))}
       </div>
+
+      <BankKpis bank={bank} />
 
       <Tabs defaultValue="bank">
         <TabsList>
@@ -113,7 +149,7 @@ function Qlinik() {
           <TabsTrigger value="queue">İnceleme Kuyruğu</TabsTrigger>
         </TabsList>
         <TabsContent value="bank" className="mt-4">
-          <QuestionBank />
+          <QuestionBank bank={bank} />
         </TabsContent>
         <TabsContent value="queue" className="mt-4">
           <ReviewQueue />
@@ -123,20 +159,48 @@ function Qlinik() {
   );
 }
 
-function CountKpi({
+function BankKpis({ bank }: { bank: BankCfg }) {
+  const base = bank.filter ? `${bank.filter}&` : "";
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <CountQ
+        label="Canlı soru"
+        schema={bank.schema}
+        rawQuery={`${base}is_active=eq.true`}
+        tone="success"
+      />
+      <CountQ
+        label="Pasif soru"
+        schema={bank.schema}
+        rawQuery={`${base}is_active=eq.false`}
+        tone="warning"
+      />
+      <CountQ
+        label="Kullanıcı üretimi"
+        schema={bank.schema}
+        rawQuery={`${base}is_user_generated=eq.true`}
+      />
+      <TaxKpi bank={bank} />
+    </div>
+  );
+}
+
+function CountQ({
   label,
+  schema,
   rawQuery,
   tone,
 }: {
   label: string;
+  schema: "public" | "kamubase";
   rawQuery: string;
   tone?: "success" | "warning" | "default";
 }) {
   const q = useQuery({
-    queryKey: ["q-count", rawQuery],
+    queryKey: ["q-count", schema, rawQuery],
     queryFn: () =>
       selectRows({
-        schema: "public",
+        schema,
         table: "questions",
         select: "id",
         rawQuery: `${rawQuery}&limit=1`,
@@ -147,15 +211,18 @@ function CountKpi({
     <KpiCard label={label} value={q.isLoading ? "…" : q.error ? "!" : (q.data ?? 0)} tone={tone} />
   );
 }
-function CountTaxonomy() {
+
+function TaxKpi({ bank }: { bank: BankCfg }) {
+  // KamuBase → kamubase.topic_tree; Qlinik disiplinleri → public.qlinik_taxonomy?discipline_code
+  const isKamu = bank.schema === "kamubase";
   const q = useQuery({
-    queryKey: ["tax-count"],
+    queryKey: ["tax-count", bank.schema, bank.discipline],
     queryFn: () =>
       selectRows({
-        schema: "public",
-        table: "qlinik_taxonomy",
+        schema: isKamu ? "kamubase" : "public",
+        table: isKamu ? "topic_tree" : "qlinik_taxonomy",
         select: "id",
-        rawQuery: "limit=1",
+        rawQuery: isKamu ? "limit=1" : `discipline_code=eq.${bank.discipline}&limit=1`,
       }).then((r) => r.count ?? 0),
     retry: false,
   });
@@ -166,14 +233,13 @@ function CountTaxonomy() {
 // Soru Bankası (public.questions)
 // ---------------------------------------------------------------------------
 
-function QuestionBank() {
+function QuestionBank({ bank }: { bank: BankCfg }) {
   const qc = useQueryClient();
-  const [bankKey, setBankKey] = useState("qlinik");
+  const bankKey = bank.discipline ?? bank.schema;
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
   const [editing, setEditing] = useState<JsonRow | null>(null);
   const [creating, setCreating] = useState(false);
-  const bank = BANKS[bankKey];
 
   const rawQuery = useMemo(() => {
     const parts = ["order=created_at.desc"];
@@ -243,18 +309,6 @@ function QuestionBank() {
       }
     >
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Select value={bankKey} onValueChange={setBankKey}>
-          <SelectTrigger className="h-9 w-52">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(BANKS).map(([k, b]) => (
-              <SelectItem key={k} value={k}>
-                {b.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Input
           placeholder="Soru, ders, konu…"
           value={search}
@@ -450,8 +504,10 @@ function QuestionEditor({
           action: "update_question",
         });
       if (bank.discipline) {
-        fields.access_disciplines = [bank.discipline];
+        // metadata.discipline kategoriyi belirler (bankayı bu filtreler);
+        // access_disciplines ise görünürlük listesidir → canlı veriyle uyumlu tam liste.
         fields.metadata = { discipline: bank.discipline };
+        fields.access_disciplines = Array.from(new Set([...ACCESS_ALL, bank.discipline]));
         fields.tags = ["app:qlinik", `discipline:${bank.discipline}`];
       }
       return auditedInsert({
