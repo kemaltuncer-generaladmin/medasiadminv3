@@ -90,11 +90,19 @@ const THEMES: Record<Discipline, Theme> = {
   saglik: { word: "Sağlık", ink: "#0b1f4d", accent: "#2563eb", accent2: "#22c55e", icon: "⚕️" },
 };
 
-// Sayfa başına soru hedefi: 2 sütun × 3 satır.
-const PER_PAGE = 6;
+// Sayfa başına soru hedefi: 2 sütun × 3 satır (= 6). Kartlar yüksekliğe göre
+// paketlenir; uzun kartlar olduğunda sayfa başına 4 veya 2 soru düşebilir —
+// ASLA kesilme olmaz (kullanıcı kuralı: "gerekirse 3 soru olsun ama asla
+// kesilme olmasın").
+const MAX_ROWS_PER_PAGE = 3; // 3 satır × 2 sütun = en fazla 6 soru/sayfa
+// A4 (297mm) içeriğinden header+meta+güvenlik barı+footer çıkınca karta kalan
+// kullanılabilir yükseklik (mm). Kesilmeye karşı bilinçli olarak temkinli.
+const PAGE_CONTENT_MM = 238;
+const ROW_GAP_MM = 1.8;
 // Açıklama alanı bu satır sayısını aşarsa kart içinde kırpılır ve tam metin
-// "Detaylı Açıklamalar" ekine taşınır (layout kuralı 1 & 2).
-const EXPLANATION_CLAMP_LINES = 10;
+// "Detaylı Açıklamalar" ekine taşınır (layout kuralı 1 & 2). Bu bir güvenlik
+// tavanıdır; normal kesilme paketleme ile zaten önlenir.
+const EXPLANATION_CLAMP_LINES = 14;
 // Soru metni bu uzunluğu aşarsa kart kompakt fonta düşer (kuralı 7).
 const LONG_TEXT_THRESHOLD = 320;
 
@@ -185,12 +193,87 @@ function isNegativeStem(text: unknown): boolean {
 }
 
 function clampLines(text: string): { html: string; truncated: boolean } {
-  // Kabaca satır tahmini: ~62 karakter/satır. 10 satırı aşarsa kırp.
+  // Kabaca satır tahmini: ~62 karakter/satır. Tavanı aşarsa kırp.
   const approxLines = Math.ceil(text.length / 62) + (text.match(/\n/g)?.length ?? 0);
   if (approxLines <= EXPLANATION_CLAMP_LINES) return { html: esc(text), truncated: false };
   const limit = EXPLANATION_CLAMP_LINES * 62;
   const cut = text.slice(0, limit).replace(/\s+\S*$/, "");
   return { html: esc(cut) + "…", truncated: true };
+}
+
+// Bir metnin tek sütun kartta kaç satır kaplayacağını tahmin et.
+function lineCount(text: string, charsPerLine: number): number {
+  if (!text) return 0;
+  const explicit = text.split("\n");
+  return explicit.reduce((sum, ln) => sum + Math.max(1, Math.ceil(ln.length / charsPerLine)), 0);
+}
+
+// Kartın render edileceği yaklaşık yüksekliği (mm) tahmin et. Paketleme bunu
+// kullanarak sayfaya sığacak kadar kart koyar → kesilme olmaz. Tahminler
+// bilinçli olarak biraz CÖMERT (fazla) tutulur ki taşma asla olmasın.
+function estimateCardHeightMm(q: QlinikQuestion, withAnswers: boolean): number {
+  const options = asStringArray(q.options);
+  const compact = String(q.text ?? "").length > LONG_TEXT_THRESHOLD;
+
+  // Sabit gövde: kenarlık+padding + başlık satırı + iç boşluklar.
+  let mm = 12;
+
+  // Soru metni kutusu.
+  const qCharsPerLine = compact ? 50 : 44;
+  const qLineMm = compact ? 3.4 : 3.9;
+  mm += 3 + lineCount(String(q.text ?? ""), qCharsPerLine) * qLineMm;
+
+  // Şıklar.
+  const optCharsPerLine = compact ? 46 : 40;
+  const optLineMm = compact ? 3.4 : 3.7;
+  for (const opt of options) {
+    mm += Math.max(1, lineCount(opt, optCharsPerLine)) * optLineMm + 1.2;
+  }
+
+  if (withAnswers && q.explanation && String(q.explanation).trim()) {
+    const { html } = clampLines(String(q.explanation).trim());
+    // html escape sonrası uzunluk yerine ham metin satırını baz al.
+    mm += 4 + lineCount(html.replace(/&[^;]+;/g, "x"), 52) * 3.4;
+  }
+
+  if (withAnswers && hasAnyRationale(q.option_rationales, options.length)) {
+    mm += 4.5; // "Şık Analizi" başlığı
+    for (let i = 0; i < options.length; i++) {
+      const r = rationaleFor(q.option_rationales, i, options.length);
+      if (r) mm += Math.max(1, lineCount(r, 54)) * 3.3 + 0.6;
+    }
+  }
+
+  return mm;
+}
+
+// Kartları (sıralı) yüksekliğe göre sayfalara paketle. Her sayfa 2 sütun;
+// satır yüksekliği = sol/sağ kartın maksimumu. Sayfa kapasitesi (mm) veya
+// satır limiti dolunca yeni sayfaya geçilir. Tek bir kart bile sayfayı aşacak
+// kadar büyükse (uç durum) yine kendi sayfasına alınır.
+function packPages(heights: number[]): number[][] {
+  const pages: number[][] = [];
+  let page: number[] = [];
+  let used = 0;
+  let rows = 0;
+
+  for (let i = 0; i < heights.length; i += 2) {
+    const rowH = Math.max(heights[i], heights[i + 1] ?? 0);
+    const needsNewPage =
+      page.length > 0 && (rows >= MAX_ROWS_PER_PAGE || used + ROW_GAP_MM + rowH > PAGE_CONTENT_MM);
+    if (needsNewPage) {
+      pages.push(page);
+      page = [];
+      used = 0;
+      rows = 0;
+    }
+    page.push(i);
+    if (heights[i + 1] !== undefined) page.push(i + 1);
+    used += (rows > 0 ? ROW_GAP_MM : 0) + rowH;
+    rows += 1;
+  }
+  if (page.length) pages.push(page);
+  return pages.length ? pages : [[]];
 }
 
 // --------------------------------------------------------------------------
@@ -382,17 +465,21 @@ function styles(theme: Theme): string {
   }
 
   /* ---- Grid ---- */
+  /* Satır yükseklikleri içeriğe göre (auto); sabit 1fr satır YOK — kesilme
+     olmaması için kartlar doğal yüksekliğini alır. Sayfa başına kart sayısı,
+     üretim sırasında yükseklik tahminiyle paketlenir (2/4/6), asla taşmaz. */
   .grid {
     position: relative; z-index: 2; flex: 1; min-height: 0;
-    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 1fr);
+    display: grid; grid-template-columns: 1fr 1fr;
+    grid-auto-rows: min-content; align-content: start;
     gap: 5px; margin: 6px 0;
   }
 
   /* ---- Kart ---- */
   .card {
     border: 1px solid #dbe3f2; border-radius: 9px; padding: 7px 9px;
-    display: flex; flex-direction: column; gap: 4px; overflow: hidden;
-    background: #fff;
+    display: flex; flex-direction: column; gap: 4px;
+    background: #fff; break-inside: avoid; page-break-inside: avoid;
   }
   .card.compact { font-size: 9px; }
   .c-head { display: flex; align-items: center; gap: 6px; }
@@ -556,8 +643,9 @@ function appendixBlock(items: NonNullable<RenderedCard["overflow"]>[]): string {
 /**
  * Tipli soru listesi + belge meta verisinden, A4 print/PDF uyumlu, kendi
  * kendine yeten tam HTML belgesi üretir. Bağımlılık yok; deterministik.
- * Sayfa başına 6 soru (2×3), dinamik kart yüksekliği, koşullu açıklama / şık
- * analizi, taşan açıklamalar için "Detaylı Açıklamalar" eki içerir.
+ * Kartlar yüksekliğe göre sayfalara paketlenir (en fazla 6/sayfa, 2×3; uzun
+ * kartlarda 4 veya 2) — HİÇBİR kart kesilmez. Dinamik kart yüksekliği, koşullu
+ * açıklama / şık analizi, taşan açıklamalar için "Detaylı Açıklamalar" eki.
  */
 export function buildQlinikQuestionHtml(
   questions: QlinikQuestion[],
@@ -580,20 +668,19 @@ export function buildQlinikQuestionHtml(
         undefined),
   };
 
-  // Kartları render et ve taşan açıklamaları topla.
+  // Kartları render et, yüksekliğini tahmin et ve taşan açıklamaları topla.
   const overflowItems: NonNullable<RenderedCard["overflow"]>[] = [];
+  const withAnswers = resolvedMeta.withAnswers !== false;
   const cards = questions.map((q, i) => {
     const rendered = renderCard(q, i + 1, theme, resolvedMeta);
     if (rendered.overflow) overflowItems.push(rendered.overflow);
     return rendered.html;
   });
+  const heights = questions.map((q) => estimateCardHeightMm(q, withAnswers));
 
-  // 6'lı sayfalara böl (kuralı 8: kalanı sonraki sayfaya taşı).
-  const pages: string[][] = [];
-  for (let i = 0; i < cards.length; i += PER_PAGE) {
-    pages.push(cards.slice(i, i + PER_PAGE));
-  }
-  if (pages.length === 0) pages.push([]);
+  // Yüksekliğe göre sayfalara paketle (2/4/6 soru/sayfa) — hiçbir kart
+  // kesilmez; uzun kartlar olduğunda sayfada daha az soru olur.
+  const pages: string[][] = packPages(heights).map((idxs) => idxs.map((i) => cards[i]));
 
   const hasAppendix = overflowItems.length > 0;
   const totalPages = pages.length + (hasAppendix ? 1 : 0);
