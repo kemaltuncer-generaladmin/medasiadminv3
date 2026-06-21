@@ -415,9 +415,13 @@ function normalizeQuestionImportRow(
   );
   setIfMissing(metadata, "confidence", nonEmptyString(metadata.confidence) ?? "high");
   setIfMissing(metadata, "source", "json_import");
-  if (target.discipline) setIfMissing(metadata, "discipline", target.discipline);
+  // Disiplin, seçilen preset tarafından ZORLA damgalanır (setIfMissing DEĞİL):
+  // JSON içinde farklı bir discipline gelse bile bankayı kullanıcının seçimi belirler.
+  // (4 disiplinin de kendi "Anatomi" dersi var; ayrım metadata.discipline ile yapılır.)
+  if (target.discipline) metadata.discipline = target.discipline;
 
-  const tags = new Set(stringArray(input.tags));
+  // Yanlış disiplin etiketlerini temizleyip yalnızca seçilen disiplini ekle.
+  const tags = new Set(stringArray(input.tags).filter((t) => !t.startsWith("discipline:")));
   tags.add("app:qlinik");
   if (target.discipline) tags.add(`discipline:${target.discipline}`);
 
