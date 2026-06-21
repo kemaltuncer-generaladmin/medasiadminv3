@@ -59,158 +59,44 @@ type Preset = {
   questionTarget?: QuestionImportTarget;
 };
 
+// Sadece 5 Qlinik disiplini — tamamı public.questions'a TASLAK olarak yazılır,
+// access_disciplines = [disiplin] → yalnızca o disiplini seçen kullanıcı görür.
+function qlinikPreset(
+  id: string,
+  label: string,
+  discipline: "tip" | "dis" | "hemsirelik" | "ftr" | "veteriner",
+): Preset {
+  return {
+    id,
+    label,
+    schema: "public",
+    table: "questions",
+    baseDefaults: {
+      difficulty: "medium",
+      is_active: false,
+      is_user_generated: false,
+      access_disciplines: [discipline],
+      tags: ["app:qlinik", `discipline:${discipline}`],
+      metadata: { discipline, cognitive_level: "application", confidence: "high" },
+    },
+    rules: `\nKURALLAR: ${label} soru bankası. public.questions içine TASLAK olarak yazılır. subject, topic, text, options[5], correct_index, explanation, option_rationales[5] zorunlu. metadata.discipline=${discipline} ve access_disciplines=[${discipline}] panel tarafından damgalanır; soru yalnızca ${label} seçen kullanıcıya görünür.`,
+    showsSubjectTopic: true,
+    questionTarget: { bank: "qlinik", discipline },
+  };
+}
+
 const PRESETS: Preset[] = [
-  {
-    id: "questions",
-    label: "Sorular",
-    schema: "public",
-    table: "questions",
-    baseDefaults: { difficulty: "medium", is_active: true },
-    rules:
-      "\nKURALLAR: Klinik senaryolu, 5 şıklı, tek doğru cevap. options = 5 elemanlı string dizi. correct_index 0-4 tam sayı. explanation dolu. Türkçe.",
-    showsSubjectTopic: true,
-  },
-  {
-    id: "qlinik_tip_questions",
-    label: "Qlinik Tıp JSON",
-    schema: "public",
-    table: "questions",
-    baseDefaults: {
-      difficulty: "medium",
-      is_active: false,
-      is_user_generated: false,
-      access_disciplines: ["tip"],
-      tags: ["app:qlinik", "discipline:tip"],
-      metadata: { discipline: "tip", cognitive_level: "application", confidence: "high" },
-    },
-    rules:
-      "\nKURALLAR: Qlinik Tıp/TUS soru bankası. public.questions içine TASLAK olarak yazılır. subject, topic, text, options[5], correct_index, explanation, option_rationales[5] zorunlu. metadata.discipline=tip ve access_disciplines=[tip] panel tarafından damgalanır.",
-    showsSubjectTopic: true,
-    questionTarget: { bank: "qlinik", discipline: "tip" },
-  },
-  {
-    id: "kamubase_questions",
-    label: "KamuBase Soruları",
-    schema: "kamubase",
-    table: "questions",
-    baseDefaults: {
-      exam: "KPSS",
-      difficulty: "medium",
-      is_active: false,
-      is_user_generated: false,
-      tags: ["app:kamubase", "exam:kpss"],
-    },
-    rules:
-      "\nKURALLAR: KamuBase KPSS soru bankası. Qlinik/public.questions kullanma. subject, unit, topic değerlerini kamubase.topic_tree canonical ağacından seç. subject, unit, topic, subtopic, learning_objective dolu olsun. options=5 string. correct_index 0-4. option_rationales 5 eleman. tags app:kamubase ve exam:kpss içersin. metadata object içinde unit, subtopic, kazanim/learning_objective, question_type, cognitive_level olsun.",
-    showsSubjectTopic: true,
-    questionTarget: { bank: "kamubase" },
-  },
-  {
-    id: "qlinik_dis_questions",
-    label: "Qlinik Diş JSON",
-    schema: "public",
-    table: "questions",
-    baseDefaults: {
-      difficulty: "medium",
-      is_active: false,
-      is_user_generated: false,
-      access_disciplines: ["dis"],
-      tags: ["app:qlinik", "discipline:dis"],
-      metadata: { discipline: "dis", cognitive_level: "application", confidence: "high" },
-    },
-    rules:
-      "\nKURALLAR: Qlinik Diş/DUS soru bankası. public.questions içine TASLAK olarak yazılır. subject, topic, text, options[5], correct_index, explanation, option_rationales[5] zorunlu. metadata.discipline=dis ve access_disciplines=[dis] panel tarafından damgalanır.",
-    showsSubjectTopic: true,
-    questionTarget: { bank: "qlinik", discipline: "dis" },
-  },
-  {
-    id: "qlinik_hemsirelik_questions",
-    label: "Qlinik Hemşirelik JSON",
-    schema: "public",
-    table: "questions",
-    baseDefaults: {
-      difficulty: "medium",
-      is_active: false,
-      is_user_generated: false,
-      access_disciplines: ["hemsirelik"],
-      tags: ["app:qlinik", "discipline:hemsirelik"],
-      metadata: {
-        discipline: "hemsirelik",
-        cognitive_level: "application",
-        confidence: "high",
-      },
-    },
-    rules:
-      "\nKURALLAR: Qlinik Hemşirelik soru bankası. public.questions içine TASLAK olarak yazılır. subject, topic, text, options[5], correct_index, explanation, option_rationales[5] zorunlu. metadata.discipline=hemsirelik ve access_disciplines=[hemsirelik] panel tarafından damgalanır.",
-    showsSubjectTopic: true,
-    questionTarget: { bank: "qlinik", discipline: "hemsirelik" },
-  },
-  {
-    id: "question_bank",
-    label: "Soru Bankası (canonical)",
-    schema: "public",
-    table: "question_bank",
-    baseDefaults: { difficulty: "medium", is_active: true },
-    rules:
-      "\nKURALLAR: 5 şıklı, tek doğru, options 5 elemanlı dizi, correct_index 0-4, açıklama dolu. Türkçe.",
-    showsSubjectTopic: true,
-  },
-  {
-    id: "cases",
-    label: "Vakalar",
-    schema: "praticase",
-    table: "cases",
-    baseDefaults: { is_published: false, difficulty: "Orta" },
-    rules:
-      "\nKURALLAR: PratiCase vaka katalog satırı. jsonb alanları (patient_profile, expected_history, rubric…) uygun nesne/dizi olsun. slug küçük-harf-tire. is_published=false bırak (taslak).",
-  },
-  {
-    id: "sb_products",
-    label: "SourceBase Ürün",
-    schema: "sourcebase",
-    table: "products",
-    baseDefaults: { status: "draft", currency: "TRY" },
-    rules:
-      "\nKURALLAR: title, slug (benzersiz, küçük-harf-tire), price_cents (kuruş, tam sayı). status=draft.",
-  },
-  {
-    id: "store_products",
-    label: "Mağaza Paketi",
-    schema: "public",
-    table: "store_products",
-    baseDefaults: { is_active: false, currency: "TRY" },
-    rules: "\nKURALLAR: code (benzersiz), name, price_cents (kuruş). is_active=false bırak.",
-  },
-  {
-    id: "banners",
-    label: "Ana Sayfa Banner",
-    schema: "praticase",
-    table: "home_banners",
-    baseDefaults: { is_active: false },
-    rules: "\nKURALLAR: title zorunlu. sort_order tam sayı. is_active=false bırak.",
-  },
-  {
-    id: "announcements",
-    label: "Duyuru",
-    schema: "praticase",
-    table: "announcements",
-    baseDefaults: { is_active: true },
-    rules: "\nKURALLAR: title + body. Türkçe.",
-  },
-  {
-    id: "advanced",
-    label: "Gelişmiş (tablo seç)",
-    schema: "public",
-    table: "",
-    baseDefaults: {},
-    rules: "",
-  },
+  qlinikPreset("qlinik_tip", "Qlinik Tıp", "tip"),
+  qlinikPreset("qlinik_dis", "Qlinik Diş", "dis"),
+  qlinikPreset("qlinik_hemsirelik", "Qlinik Hemşirelik", "hemsirelik"),
+  qlinikPreset("qlinik_ftr", "Qlinik FTR", "ftr"),
+  qlinikPreset("qlinik_veterinerlik", "Qlinik Veterinerlik", "veteriner"),
 ];
 
 const SCHEMAS: AdminSchema[] = ["public", "kamubase", "sourcebase", "praticase"];
 
 function IceAktar() {
-  const [presetId, setPresetId] = useState("questions");
+  const [presetId, setPresetId] = useState("qlinik_tip");
   const [advSchema, setAdvSchema] = useState<AdminSchema>("public");
   const [advTable, setAdvTable] = useState("");
   const [subject, setSubject] = useState("");

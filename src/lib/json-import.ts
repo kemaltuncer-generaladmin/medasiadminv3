@@ -18,8 +18,9 @@ export type ImportRowResult = {
   normalized: JsonObj;
 };
 
+export type QlinikDiscipline = "tip" | "dis" | "hemsirelik" | "ftr" | "veteriner";
 export type QuestionImportTarget =
-  | { bank: "qlinik"; discipline?: "dis" | "hemsirelik" | "tip" }
+  | { bank: "qlinik"; discipline?: QlinikDiscipline }
   | { bank: "kamubase" };
 
 export type QuestionImportLocks = {
@@ -273,14 +274,17 @@ export function questionImportPrompt(
   count: number,
   locks: QuestionImportLocks = {},
 ): string {
+  const DISCIPLINE_TITLES: Record<string, string> = {
+    tip: "Qlinik Tıp",
+    dis: "Qlinik Diş",
+    hemsirelik: "Qlinik Hemşirelik",
+    ftr: "Qlinik FTR",
+    veteriner: "Qlinik Veterinerlik",
+  };
   const bankTitle =
     target.bank === "kamubase"
       ? "KamuBase"
-      : target.discipline === "dis"
-        ? "Qlinik Diş"
-        : target.discipline === "hemsirelik"
-          ? "Qlinik Hemşirelik"
-          : "Qlinik Tıp";
+      : (DISCIPLINE_TITLES[target.discipline ?? "tip"] ?? "Qlinik Tıp");
   const required =
     target.bank === "kamubase"
       ? "subject, unit, topic, subtopic, learning_objective, difficulty(easy|medium|hard), text, options(5 string), correct_index(0-4), explanation, option_rationales(5 dolu string)"

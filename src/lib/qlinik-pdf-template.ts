@@ -12,7 +12,7 @@
 // statik örnek/mock yoktur.
 // ---------------------------------------------------------------------------
 
-export type Discipline = "tip" | "dis" | "hemsirelik" | "vet" | "saglik";
+export type Discipline = "tip" | "dis" | "hemsirelik" | "ftr" | "veteriner" | "saglik";
 
 /** Tek bir sorunun şablona girdi tipi (DB satırından eşlenir). */
 export type QlinikQuestion = {
@@ -86,7 +86,14 @@ const THEMES: Record<Discipline, Theme> = {
     accent2: "#22c55e",
     icon: "💉",
   },
-  vet: { word: "Veteriner", ink: "#0b1f4d", accent: "#ea580c", accent2: "#f59e0b", icon: "🐾" },
+  ftr: { word: "FTR", ink: "#0b1f4d", accent: "#9333ea", accent2: "#06b6d4", icon: "🦾" },
+  veteriner: {
+    word: "Veteriner",
+    ink: "#0b1f4d",
+    accent: "#ea580c",
+    accent2: "#f59e0b",
+    icon: "🐾",
+  },
   saglik: { word: "Sağlık", ink: "#0b1f4d", accent: "#2563eb", accent2: "#22c55e", icon: "⚕️" },
 };
 

@@ -79,19 +79,6 @@ export const Route = createFileRoute("/_authenticated/admin/qlinik")({
 
 const DIFFICULTIES = ["easy", "medium", "hard"];
 
-// Canlı sorularda kullanılan standart görünürlük listesi (her disipline açık).
-const ACCESS_ALL = [
-  "tip",
-  "dis",
-  "eczacilik",
-  "hemsirelik",
-  "ebelik",
-  "saglik_bilimleri",
-  "meslek_onlisans",
-  "mezun",
-  "diger",
-];
-
 type BankCfg = {
   label: string;
   schema: "public" | "kamubase";
@@ -100,13 +87,13 @@ type BankCfg = {
 };
 const BANKS: Record<string, BankCfg> = {
   qlinik: {
-    label: "Qlinik Tıp (TUS)",
+    label: "Qlinik Tıp",
     schema: "public",
     filter: "metadata->>discipline=eq.tip",
     discipline: "tip",
   },
   dis: {
-    label: "Qlinik Diş (DUS)",
+    label: "Qlinik Diş",
     schema: "public",
     filter: "metadata->>discipline=eq.dis",
     discipline: "dis",
@@ -117,11 +104,17 @@ const BANKS: Record<string, BankCfg> = {
     filter: "metadata->>discipline=eq.hemsirelik",
     discipline: "hemsirelik",
   },
-  vet: {
-    label: "Qlinik Vet",
+  ftr: {
+    label: "Qlinik FTR",
     schema: "public",
-    filter: "metadata->>discipline=eq.vet",
-    discipline: "vet",
+    filter: "metadata->>discipline=eq.ftr",
+    discipline: "ftr",
+  },
+  veteriner: {
+    label: "Qlinik Veterinerlik",
+    schema: "public",
+    filter: "metadata->>discipline=eq.veteriner",
+    discipline: "veteriner",
   },
   kamubase: { label: "KamuBase", schema: "kamubase" },
 };
@@ -733,9 +726,9 @@ function QuestionEditor({
         });
       if (bank.discipline) {
         // metadata.discipline kategoriyi belirler (bankayı bu filtreler);
-        // access_disciplines ise görünürlük listesidir → canlı veriyle uyumlu tam liste.
+        // access_disciplines = SADECE bu disiplin → yalnızca o disiplini seçen kullanıcılar görür.
         fields.metadata = { discipline: bank.discipline };
-        fields.access_disciplines = Array.from(new Set([...ACCESS_ALL, bank.discipline]));
+        fields.access_disciplines = [bank.discipline];
         fields.tags = ["app:qlinik", `discipline:${bank.discipline}`];
       }
       return auditedInsert({

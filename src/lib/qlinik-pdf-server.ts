@@ -23,7 +23,7 @@ import {
 // motor print-hazır HTML döndürür (tarayıcı tarafı yazdırma → PDF).
 // ---------------------------------------------------------------------------
 
-const DISCIPLINES: Discipline[] = ["tip", "dis", "hemsirelik", "vet", "saglik"];
+const DISCIPLINES: Discipline[] = ["tip", "dis", "hemsirelik", "ftr", "veteriner", "saglik"];
 
 export type QlinikPdfRequest = {
   /** Şablon disiplini; metadata->>discipline filtresini de belirler. */

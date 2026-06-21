@@ -94,10 +94,11 @@ function PdfCikti() {
 }
 
 const DISCIPLINES: { value: Discipline; label: string }[] = [
-  { value: "tip", label: "Tıp (TUS)" },
-  { value: "dis", label: "Diş (DUS)" },
+  { value: "tip", label: "Tıp" },
+  { value: "dis", label: "Diş" },
   { value: "hemsirelik", label: "Hemşirelik" },
-  { value: "vet", label: "Veteriner" },
+  { value: "ftr", label: "FTR" },
+  { value: "veteriner", label: "Veterinerlik" },
   { value: "saglik", label: "Sağlık (genel)" },
 ];
 
