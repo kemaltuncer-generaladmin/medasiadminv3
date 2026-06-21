@@ -11,6 +11,8 @@ import {
   Plus,
   RefreshCcw,
   XCircle,
+  Power,
+  PowerOff,
 } from "lucide-react";
 import { PageHeader, SectionCard, StatusBadge, KpiCard } from "@/components/admin/shared";
 import {
@@ -24,6 +26,7 @@ import {
   auditedUpdate,
   auditedDelete,
   insertRows,
+  updateWhere,
   type JsonRow,
 } from "@/lib/supabase-rest";
 import { fmtRelative } from "@/lib/format";
@@ -71,6 +74,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/qlinik")({
@@ -461,9 +465,11 @@ function QuestionBank({ bank }: { bank: BankCfg }) {
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
   const [editing, setEditing] = useState<JsonRow | null>(null);
   const [creating, setCreating] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selectAllFilter, setSelectAllFilter] = useState(false);
 
-  const rawQuery = useMemo(() => {
-    const parts = ["order=created_at.desc"];
+  const filterQuery = useMemo(() => {
+    const parts: string[] = [];
     if (bank.filter) parts.push(bank.filter);
     if (activeFilter === "active") parts.push("is_active=eq.true");
     if (activeFilter === "inactive") parts.push("is_active=eq.false");
@@ -473,6 +479,11 @@ function QuestionBank({ bank }: { bank: BankCfg }) {
       );
     return parts.join("&");
   }, [activeFilter, search, bank.filter]);
+
+  const rawQuery = useMemo(
+    () => [filterQuery, "order=created_at.desc"].filter(Boolean).join("&"),
+    [filterQuery],
+  );
 
   const questionsQ = useQuery({
     queryKey: ["questions", bankKey, rawQuery],
@@ -487,7 +498,67 @@ function QuestionBank({ bank }: { bank: BankCfg }) {
     retry: false,
   });
   const questions = questionsQ.data?.data ?? [];
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["questions"] });
+  const totalCount = questionsQ.data?.count ?? questions.length;
+  const hasMore = totalCount > questions.length;
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["questions"] });
+    qc.invalidateQueries({ queryKey: ["q-count"] });
+  };
+
+  const allPageSelected = questions.length > 0 && questions.every((q) => selected.has(String(q.id)));
+  const someSelected = selected.size > 0 || selectAllFilter;
+
+  const toggleSelectAll = () => {
+    if (allPageSelected) {
+      setSelected(new Set());
+      setSelectAllFilter(false);
+    } else {
+      setSelected(new Set(questions.map((q) => String(q.id))));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectAllFilter(false);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkMut = useMutation({
+    mutationFn: async (activate: boolean) => {
+      if (selectAllFilter) {
+        await updateWhere({
+          schema: bank.schema,
+          table: "questions",
+          rawQuery: filterQuery || "id=not.is.null",
+          fields: { is_active: activate },
+        });
+        return;
+      }
+      const ids = Array.from(selected);
+      const batchSize = 200;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        await updateWhere({
+          schema: bank.schema,
+          table: "questions",
+          rawQuery: `id=in.(${batch.join(",")})`,
+          fields: { is_active: activate },
+        });
+      }
+    },
+    onSuccess: (_, activate) => {
+      const count = selectAllFilter ? totalCount : selected.size;
+      toast.success(`${count} soru ${activate ? "aktifleştirildi" : "pasifleştirildi"}`);
+      setSelected(new Set());
+      setSelectAllFilter(false);
+      invalidate();
+    },
+    onError: (e) => toast.error(String((e as Error).message).slice(0, 200)),
+  });
 
   const toggleMut = useMutation({
     mutationFn: (q: JsonRow) =>
@@ -554,6 +625,65 @@ function QuestionBank({ bank }: { bank: BankCfg }) {
         </Badge>
       </div>
 
+      {someSelected && (
+        <div className="mb-3 space-y-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">
+              {selectAllFilter
+                ? `Filtredeki tüm ${totalCount} soru seçildi`
+                : `${selected.size} soru seçildi`}
+            </span>
+            {allPageSelected && hasMore && !selectAllFilter && (
+              <button
+                className="text-sm font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                onClick={() => setSelectAllFilter(true)}
+              >
+                Filtredeki tüm {totalCount} soruyu seç
+              </button>
+            )}
+            <div className="ml-auto flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={bulkMut.isPending}
+                onClick={() => {
+                  setSelected(new Set());
+                  setSelectAllFilter(false);
+                }}
+              >
+                Seçimi kaldır
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-orange-600 hover:text-orange-600"
+                disabled={bulkMut.isPending}
+                onClick={() => bulkMut.mutate(false)}
+              >
+                {bulkMut.isPending ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <PowerOff className="mr-1.5 h-4 w-4" />
+                )}
+                Toplu Pasifleştir
+              </Button>
+              <Button
+                size="sm"
+                disabled={bulkMut.isPending}
+                onClick={() => bulkMut.mutate(true)}
+              >
+                {bulkMut.isPending ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <Power className="mr-1.5 h-4 w-4" />
+                )}
+                Toplu Aktifleştir
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {questionsQ.isLoading ? (
         <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Yükleniyor…
@@ -569,6 +699,12 @@ function QuestionBank({ bank }: { bank: BankCfg }) {
           <Table>
             <TableHeader className="sticky top-0 bg-card">
               <TableRow>
+                <TableHead className="w-10" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={allPageSelected}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <TableHead>Ders / Konu</TableHead>
                 <TableHead>Zorluk</TableHead>
                 <TableHead>Soru</TableHead>
@@ -577,49 +713,59 @@ function QuestionBank({ bank }: { bank: BankCfg }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {questions.map((q) => (
-                <TableRow
-                  key={String(q.id)}
-                  className="cursor-pointer"
-                  onClick={() => setEditing(q)}
-                >
-                  <TableCell>
-                    <div className="text-sm font-medium">{String(q.subject ?? "—")}</div>
-                    <div className="text-xs text-muted-foreground">{String(q.topic ?? "")}</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{String(q.difficulty ?? "—")}</Badge>
-                  </TableCell>
-                  <TableCell className="max-w-md">
-                    <div className="line-clamp-2 text-xs">{String(q.text ?? "")}</div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={(q.is_active ?? true) ? "active" : "inactive"} />
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setEditing(q)}>Düzenle</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toggleMut.mutate(q)}>
-                          {(q.is_active ?? true) ? "Pasifleştir" : "Aktifleştir"}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => deleteMut.mutate(q)}
-                        >
-                          Sil
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {questions.map((q) => {
+                const id = String(q.id);
+                const isSelected = selected.has(id);
+                return (
+                  <TableRow
+                    key={id}
+                    className={cn("cursor-pointer", isSelected && "bg-primary/5")}
+                    onClick={() => setEditing(q)}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelect(id)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm font-medium">{String(q.subject ?? "—")}</div>
+                      <div className="text-xs text-muted-foreground">{String(q.topic ?? "")}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{String(q.difficulty ?? "—")}</Badge>
+                    </TableCell>
+                    <TableCell className="max-w-md">
+                      <div className="line-clamp-2 text-xs">{String(q.text ?? "")}</div>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={(q.is_active ?? true) ? "active" : "inactive"} />
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditing(q)}>Düzenle</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => toggleMut.mutate(q)}>
+                            {(q.is_active ?? true) ? "Pasifleştir" : "Aktifleştir"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive"
+                            onClick={() => deleteMut.mutate(q)}
+                          >
+                            Sil
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
