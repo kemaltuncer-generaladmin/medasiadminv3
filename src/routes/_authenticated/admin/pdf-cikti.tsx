@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { Download, FileText, Loader2, Printer, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Check, ChevronsUpDown, Download, FileText, Loader2, Printer, Search } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/admin/shared";
 import { selectRows, type JsonRow } from "@/lib/supabase-rest";
 import { qlinikPdfFn } from "@/lib/qlinik-pdf-server";
 import type { Discipline } from "@/lib/qlinik-pdf-template";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/pdf-cikti")({
@@ -115,32 +125,196 @@ function downloadBase64Pdf(filename: string, base64: string) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
+const ALL = "__all__";
+
+type TaxNode = { subject: string; topic: string };
+
+/** Disipline göre public.qlinik_taxonomy'den branş + konu listesini çeker. */
+function useTaxonomy(discipline: Discipline) {
+  return useQuery({
+    queryKey: ["pdf-taxonomy", discipline],
+    queryFn: async () => {
+      const r = await selectRows({
+        schema: "public",
+        table: "qlinik_taxonomy",
+        select: "subject,topic",
+        rawQuery: `discipline_code=eq.${discipline}&is_active=eq.true&order=sort_order,subject,topic`,
+        limit: 2000,
+      });
+      return (r.data as JsonRow[]).map((n) => ({
+        subject: String(n.subject ?? "").trim(),
+        topic: String(n.topic ?? "").trim(),
+      })) as TaxNode[];
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+type ProfileOpt = { id: string; name: string; email: string };
+
+function displayName(u: JsonRow): string {
+  const name = [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
+  return name || String(u.email ?? u.id ?? "");
+}
+
+/** Kullanıcıyı public.profiles'tan sunucu-aramalı combobox ile seçtirir. */
+function UserCombobox({
+  value,
+  onSelect,
+}: {
+  value: ProfileOpt | null;
+  onSelect: (p: ProfileOpt | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const q = useQuery({
+    queryKey: ["pdf-users", search],
+    queryFn: async () => {
+      const term = search.trim();
+      const filter = term
+        ? `or=(first_name.ilike.*${term}*,last_name.ilike.*${term}*,email.ilike.*${term}*)&`
+        : "";
+      const r = await selectRows({
+        schema: "public",
+        table: "profiles",
+        select: "id,first_name,last_name,email",
+        rawQuery: `${filter}order=created_at.desc`,
+        limit: 25,
+      });
+      return (r.data as JsonRow[]).map((u) => ({
+        id: String(u.id),
+        name: displayName(u),
+        email: String(u.email ?? ""),
+      })) as ProfileOpt[];
+    },
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className="truncate">{value ? value.name : "Kullanıcı seç…"}</span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Ad, soyad veya e-posta…"
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList>
+            {q.isLoading ? (
+              <div className="py-4 text-center text-sm text-muted-foreground">Yükleniyor…</div>
+            ) : (
+              <CommandEmpty>Kullanıcı bulunamadı.</CommandEmpty>
+            )}
+            <CommandGroup>
+              {value ? (
+                <CommandItem
+                  value="__clear__"
+                  onSelect={() => {
+                    onSelect(null);
+                    setOpen(false);
+                  }}
+                  className="text-muted-foreground"
+                >
+                  Seçimi temizle
+                </CommandItem>
+              ) : null}
+              {(q.data ?? []).map((u) => (
+                <CommandItem
+                  key={u.id}
+                  value={u.id}
+                  onSelect={() => {
+                    onSelect(u);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn("mr-2 h-4 w-4", value?.id === u.id ? "opacity-100" : "opacity-0")}
+                  />
+                  <span className="flex flex-col">
+                    <span className="text-sm">{u.name}</span>
+                    {u.email ? (
+                      <span className="text-xs text-muted-foreground">{u.email}</span>
+                    ) : null}
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function QuestionsExport() {
   const [discipline, setDiscipline] = useState<Discipline>("tip");
-  const [subject, setSubject] = useState("");
-  const [topic, setTopic] = useState("");
+  const [subject, setSubject] = useState(ALL);
+  const [topic, setTopic] = useState(ALL);
   const [difficulty, setDifficulty] = useState("all");
   const [limit, setLimit] = useState("50");
   const [withAnswers, setWithAnswers] = useState("1");
-  const [userName, setUserName] = useState("");
+  const [user, setUser] = useState<ProfileOpt | null>(null);
   const [exam, setExam] = useState("");
   const [documentId, setDocumentId] = useState("");
+
+  const tax = useTaxonomy(discipline);
+
+  // Branş listesi (benzersiz) ve seçili branşa göre konu listesi.
+  const subjects = useMemo(() => {
+    const set = new Set<string>();
+    for (const n of tax.data ?? []) if (n.subject) set.add(n.subject);
+    return Array.from(set);
+  }, [tax.data]);
+
+  const topics = useMemo(() => {
+    const set = new Set<string>();
+    for (const n of tax.data ?? []) {
+      if (!n.topic) continue;
+      if (subject !== ALL && n.subject !== subject) continue;
+      set.add(n.topic);
+    }
+    return Array.from(set);
+  }, [tax.data, subject]);
+
+  function changeDiscipline(v: Discipline) {
+    setDiscipline(v);
+    setSubject(ALL);
+    setTopic(ALL);
+  }
+  function changeSubject(v: string) {
+    setSubject(v);
+    setTopic(ALL);
+  }
 
   const mut = useMutation({
     mutationFn: (format: "pdf" | "html") =>
       qlinikPdfFn({
         data: {
           discipline,
-          subject: subject.trim() || undefined,
-          topic: topic.trim() || undefined,
+          subject: subject === ALL ? undefined : subject,
+          topic: topic === ALL ? undefined : topic,
           difficulty: difficulty === "all" ? undefined : difficulty,
           limit: Number(limit) || 50,
           withAnswers: withAnswers === "1",
           format,
           meta: {
-            userName: userName.trim() || undefined,
+            userName: user?.name || undefined,
             exam: exam.trim() || undefined,
-            documentId: documentId.trim() || undefined,
+            documentId:
+              documentId.trim() || (user ? `QLK-${user.id.slice(0, 8).toUpperCase()}` : undefined),
           },
         },
       }),
@@ -167,7 +341,7 @@ function QuestionsExport() {
     >
       <div className="grid gap-3 md:grid-cols-3">
         <Field label="Disiplin / Şablon">
-          <Select value={discipline} onValueChange={(v) => setDiscipline(v as Discipline)}>
+          <Select value={discipline} onValueChange={(v) => changeDiscipline(v as Discipline)}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -181,10 +355,34 @@ function QuestionsExport() {
           </Select>
         </Field>
         <Field label="Ders / Branş">
-          <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <Select value={subject} onValueChange={changeSubject} disabled={tax.isLoading}>
+            <SelectTrigger>
+              <SelectValue placeholder={tax.isLoading ? "Yükleniyor…" : "Tümü"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Tümü</SelectItem>
+              {subjects.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         <Field label="Konu">
-          <Input value={topic} onChange={(e) => setTopic(e.target.value)} />
+          <Select value={topic} onValueChange={setTopic} disabled={tax.isLoading}>
+            <SelectTrigger>
+              <SelectValue placeholder={tax.isLoading ? "Yükleniyor…" : "Tümü"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>Tümü</SelectItem>
+              {topics.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         <Field label="Zorluk">
           <Select value={difficulty} onValueChange={setDifficulty}>
@@ -219,8 +417,8 @@ function QuestionsExport() {
         Kişiye özel (header chip + filigran)
       </p>
       <div className="mt-1.5 grid gap-3 md:grid-cols-3">
-        <Field label="Kullanıcı adı soyadı">
-          <Input value={userName} onChange={(e) => setUserName(e.target.value)} />
+        <Field label="Kullanıcı">
+          <UserCombobox value={user} onSelect={setUser} />
         </Field>
         <Field label="Sınav">
           <Input value={exam} onChange={(e) => setExam(e.target.value)} placeholder="TUS / DUS …" />
@@ -229,7 +427,7 @@ function QuestionsExport() {
           <Input
             value={documentId}
             onChange={(e) => setDocumentId(e.target.value)}
-            placeholder="opsiyonel"
+            placeholder={user ? `QLK-${user.id.slice(0, 8).toUpperCase()}` : "otomatik"}
           />
         </Field>
       </div>

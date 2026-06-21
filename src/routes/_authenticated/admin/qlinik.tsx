@@ -1,8 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { HelpCircle, Loader2, Plus, MoreVertical, CheckCircle2, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  HelpCircle,
+  Loader2,
+  MoreVertical,
+  Plus,
+  RefreshCcw,
+  XCircle,
+} from "lucide-react";
 import { PageHeader, SectionCard, StatusBadge, KpiCard } from "@/components/admin/shared";
+import {
+  qlinikAutomationStatusFn,
+  type QlinikAutomationCheck,
+  type QlinikAutomationStatus,
+} from "@/lib/qlinik-automation-server";
 import {
   selectRows,
   auditedInsert,
@@ -143,11 +158,15 @@ function Qlinik() {
 
       <BankKpis bank={bank} />
 
-      <Tabs defaultValue="bank">
+      <Tabs defaultValue="automation">
         <TabsList>
+          <TabsTrigger value="automation">Otomasyon</TabsTrigger>
           <TabsTrigger value="bank">Soru Bankası</TabsTrigger>
           <TabsTrigger value="queue">İnceleme Kuyruğu</TabsTrigger>
         </TabsList>
+        <TabsContent value="automation" className="mt-4">
+          <QlinikAutomation />
+        </TabsContent>
         <TabsContent value="bank" className="mt-4">
           <QuestionBank bank={bank} />
         </TabsContent>
@@ -157,6 +176,215 @@ function Qlinik() {
       </Tabs>
     </div>
   );
+}
+
+function QlinikAutomation() {
+  const statusQ = useQuery({
+    queryKey: ["qlinik-automation-status"],
+    queryFn: () => qlinikAutomationStatusFn(),
+    retry: false,
+  });
+  const status = statusQ.data;
+
+  return (
+    <div className="space-y-4">
+      <SectionCard
+        title="Qlinik bağlantı merkezi"
+        description="Admin panel, Qlinik uygulaması, Supabase ve PDF servisinin canlı ilişkisi"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={statusQ.isFetching}
+            onClick={() => statusQ.refetch()}
+          >
+            {statusQ.isFetching ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="mr-1.5 h-4 w-4" />
+            )}
+            Kontrol et
+          </Button>
+        }
+      >
+        {statusQ.isLoading ? (
+          <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Otomasyon durumu okunuyor…
+          </div>
+        ) : statusQ.error ? (
+          <div className="py-6 text-sm text-destructive">
+            {String((statusQ.error as Error).message).slice(0, 220)}
+          </div>
+        ) : status ? (
+          <AutomationOverview status={status} />
+        ) : null}
+      </SectionCard>
+
+      {status ? (
+        <>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <AutomationGroup title="Ortam ayarları" checks={status.env} />
+            <AutomationGroup title="Canlı endpoint" checks={status.endpoints} />
+            <AutomationGroup title="Ortak veri" checks={status.data} />
+          </div>
+          <AutomationSetup status={status} />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function AutomationOverview({ status }: { status: QlinikAutomationStatus }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-4">
+      <KpiCard
+        label="Genel durum"
+        value={toneLabel(status.readiness)}
+        tone={kpiTone(status.readiness)}
+      />
+      <KpiCard label="Başarılı kontrol" value={status.summary.ok} tone="success" />
+      <KpiCard label="Uyarı" value={status.summary.warning} tone="warning" />
+      <KpiCard label="Hata" value={status.summary.error} tone="destructive" />
+    </div>
+  );
+}
+
+function AutomationGroup({ title, checks }: { title: string; checks: QlinikAutomationCheck[] }) {
+  return (
+    <SectionCard title={title}>
+      <div className="space-y-2">
+        {checks.map((check) => (
+          <AutomationCheckRow key={check.id} check={check} />
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+function AutomationCheckRow({ check }: { check: QlinikAutomationCheck }) {
+  return (
+    <div className="rounded-md border p-3">
+      <div className="mb-1.5 flex items-start justify-between gap-2">
+        <div>
+          <div className="text-sm font-medium">{check.label}</div>
+          <div className="mt-0.5 break-words text-xs text-muted-foreground">{check.detail}</div>
+        </div>
+        <Badge variant="outline" className={cn("shrink-0", toneClass(check.tone))}>
+          {toneLabel(check.tone)}
+        </Badge>
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+        {check.status !== undefined && <span>HTTP {check.status}</span>}
+        {check.ms !== undefined && <span>{check.ms} ms</span>}
+        {check.count !== undefined && <span>{check.count} kayıt</span>}
+      </div>
+      {check.error && (
+        <div className="mt-2 line-clamp-2 text-xs text-destructive">{check.error}</div>
+      )}
+    </div>
+  );
+}
+
+function AutomationSetup({ status }: { status: QlinikAutomationStatus }) {
+  const setup = status.setup;
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <SectionCard title="Qlinik çalışma akışı" description="Kod yazmadan doğrulanacak zincir">
+        <div className="space-y-2">
+          {setup.qlinikRuntimeFlow.map((line, index) => (
+            <div key={line} className="flex gap-2 rounded-md border p-3 text-sm">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                {index + 1}
+              </span>
+              <span>{line}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 grid gap-2 text-xs md:grid-cols-2">
+          <EndpointLink label="Qlinik" url={setup.qlinikAppUrl} />
+          <EndpointLink label="Edge Function" url={setup.edgeFunctionUrl} />
+          <EndpointLink label="Admin Panel" url={setup.adminPanelUrl} />
+          <EndpointLink label="PDF Endpoint" url={setup.pdfEndpoint} />
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Kurulum reçetesi"
+        description="Qlinik deploy/build ekranına yapıştırılacak public ayarlar"
+      >
+        <div className="space-y-3">
+          <CopyBlock label="Flutter dart-define" lines={setup.dartDefines} />
+          <CopyBlock label="Docker build args" lines={setup.dockerBuildArgs} />
+        </div>
+      </SectionCard>
+    </div>
+  );
+}
+
+function EndpointLink({ label, url }: { label: string; url: string }) {
+  if (!url) {
+    return (
+      <div className="rounded-md border p-2">
+        <div className="font-medium">{label}</div>
+        <div className="text-muted-foreground">eksik</div>
+      </div>
+    );
+  }
+  return (
+    <a
+      className="rounded-md border p-2 hover:bg-muted/50"
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+    >
+      <div className="flex items-center gap-1 font-medium">
+        {label} <ExternalLink className="h-3 w-3" />
+      </div>
+      <div className="break-all text-muted-foreground">{url}</div>
+    </a>
+  );
+}
+
+function CopyBlock({ label, lines }: { label: string; lines: string[] }) {
+  const text = lines.join("\n");
+  return (
+    <div className="rounded-md border">
+      <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
+        <div className="text-sm font-medium">{label}</div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={async () => {
+            await navigator.clipboard.writeText(text);
+            toast.success("Kopyalandı");
+          }}
+        >
+          <Copy className="mr-1.5 h-4 w-4" /> Kopyala
+        </Button>
+      </div>
+      <pre className="max-h-44 overflow-auto whitespace-pre-wrap break-all p-3 text-xs text-muted-foreground">
+        {text}
+      </pre>
+    </div>
+  );
+}
+
+function toneLabel(tone: "ok" | "warning" | "error") {
+  if (tone === "ok") return "Hazır";
+  if (tone === "warning") return "Uyarı";
+  return "Hata";
+}
+
+function toneClass(tone: "ok" | "warning" | "error") {
+  if (tone === "ok") return "border-success/30 bg-success/15 text-success";
+  if (tone === "warning") return "border-warning/30 bg-warning/15 text-warning";
+  return "border-destructive/30 bg-destructive/15 text-destructive";
+}
+
+function kpiTone(tone: "ok" | "warning" | "error") {
+  if (tone === "ok") return "success";
+  if (tone === "warning") return "warning";
+  return "destructive";
 }
 
 function BankKpis({ bank }: { bank: BankCfg }) {
