@@ -274,17 +274,22 @@ export function questionImportPrompt(
   locks: QuestionImportLocks = {},
 ): string {
   const bankTitle =
-    target.bank === "kamubase" ? "KamuBase"
-    : target.discipline === "dis" ? "Qlinik Diş"
-    : target.discipline === "hemsirelik" ? "Qlinik Hemşirelik"
-    : "Qlinik Tıp";
+    target.bank === "kamubase"
+      ? "KamuBase"
+      : target.discipline === "dis"
+        ? "Qlinik Diş"
+        : target.discipline === "hemsirelik"
+          ? "Qlinik Hemşirelik"
+          : "Qlinik Tıp";
   const required =
     target.bank === "kamubase"
       ? "subject, unit, topic, subtopic, learning_objective, difficulty(easy|medium|hard), text, options(5 string), correct_index(0-4), explanation, option_rationales(5 dolu string)"
       : "subject, topic, difficulty(easy|medium|hard), text, options(5 string), correct_index(0-4), explanation, option_rationales(5 dolu string), tags, metadata.subtopic";
   const scope = [
     locks.subject ? `Ders (subject HER kayıtta birebir bu olacak): "${locks.subject}"` : "",
-    locks.unit && target.bank === "kamubase" ? `Ünite (unit HER kayıtta birebir bu olacak): "${locks.unit}"` : "",
+    locks.unit && target.bank === "kamubase"
+      ? `Ünite (unit HER kayıtta birebir bu olacak): "${locks.unit}"`
+      : "",
     locks.topic ? `Konu (topic HER kayıtta birebir bu olacak): "${locks.topic}"` : "",
   ]
     .filter(Boolean)
@@ -311,9 +316,7 @@ function nonEmptyString(v: unknown): string | null {
 
 function stringArray(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
-  return v
-    .map((item) => nonEmptyString(item))
-    .filter((item): item is string => !!item);
+  return v.map((item) => nonEmptyString(item)).filter((item): item is string => !!item);
 }
 
 function objectValue(v: unknown): JsonObj {
@@ -343,7 +346,9 @@ function normalizeQuestionImportRow(
   const unit = nonEmptyString(locks.unit) ?? nonEmptyString(input.unit) ?? "";
   const topic = nonEmptyString(locks.topic) ?? nonEmptyString(input.topic) ?? "";
   const subtopic =
-    nonEmptyString(input.subtopic) ?? metadataString(input, "subtopic") ?? (target.bank === "kamubase" ? topic : "");
+    nonEmptyString(input.subtopic) ??
+    metadataString(input, "subtopic") ??
+    (target.bank === "kamubase" ? topic : "");
   const learningObjective =
     nonEmptyString(input.learning_objective) ??
     metadataString(input, "learning_objective") ??
@@ -403,7 +408,11 @@ function normalizeQuestionImportRow(
   const metadata: JsonObj = { ...objectValue(input.metadata) };
   setIfMissing(metadata, "subtopic", subtopic);
   setIfMissing(metadata, "question_type", nonEmptyString(metadata.question_type) ?? "");
-  setIfMissing(metadata, "cognitive_level", nonEmptyString(metadata.cognitive_level) ?? "application");
+  setIfMissing(
+    metadata,
+    "cognitive_level",
+    nonEmptyString(metadata.cognitive_level) ?? "application",
+  );
   setIfMissing(metadata, "confidence", nonEmptyString(metadata.confidence) ?? "high");
   setIfMissing(metadata, "source", "json_import");
   if (target.discipline) setIfMissing(metadata, "discipline", target.discipline);

@@ -261,13 +261,13 @@ function IceAktar() {
 
   const isQlinikQuestionImport = preset.questionTarget?.bank === "qlinik";
   const taxonomyFilter =
-    preset.questionTarget?.bank === "qlinik" && preset.questionTarget.discipline ?
-      `discipline_code=eq.${preset.questionTarget.discipline}`
-    : "";
-  const refTable =
-    isKamubase ? "topic_tree"
-    : isQlinikQuestionImport ? "qlinik_taxonomy"
-    : table;
+    preset.questionTarget?.bank === "qlinik" && preset.questionTarget.discipline
+      ? `discipline_code=eq.${preset.questionTarget.discipline}`
+      : "";
+  const refTable = isKamubase ? "topic_tree" : isQlinikQuestionImport ? "qlinik_taxonomy" : table;
+  // Derslere göre konuların şekillenmesi: konu listesi seçili derse (ve KamuBase'de
+  // seçili üniteye) göre kademeli (cascading) filtrelenir.
+  const eq = (col: string, v: string) => `${col}=eq.${encodeURIComponent(v)}`;
   const subjectsQ = useQuery({
     queryKey: ["distinct", schema, refTable, "subject", taxonomyFilter],
     queryFn: () =>
@@ -275,19 +275,47 @@ function IceAktar() {
     enabled: showsSubjectTopic && !!refTable,
     retry: false,
   });
-  const topicsQ = useQuery({
-    queryKey: ["distinct", schema, refTable, "topic", taxonomyFilter],
-    queryFn: () =>
-      distinctValues({ schema, table: refTable, column: "topic", rawQuery: taxonomyFilter }),
-    enabled: showsSubjectTopic && !!refTable,
-    retry: false,
-  });
   const unitsQ = useQuery({
-    queryKey: ["distinct", schema, refTable, "unit"],
-    queryFn: () => distinctValues({ schema, table: refTable, column: "unit" }),
+    queryKey: ["distinct", schema, refTable, "unit", subject],
+    queryFn: () =>
+      distinctValues({
+        schema,
+        table: refTable,
+        column: "unit",
+        rawQuery: subject ? eq("subject", subject) : "",
+      }),
     enabled: showsSubjectTopic && isKamubase && !!refTable,
     retry: false,
   });
+  const topicsQ = useQuery({
+    queryKey: ["distinct", schema, refTable, "topic", taxonomyFilter, subject, unit],
+    queryFn: () =>
+      distinctValues({
+        schema,
+        table: refTable,
+        column: "topic",
+        rawQuery: [
+          taxonomyFilter,
+          subject ? eq("subject", subject) : "",
+          isKamubase && unit ? eq("unit", unit) : "",
+        ]
+          .filter(Boolean)
+          .join("&"),
+      }),
+    enabled: showsSubjectTopic && !!refTable,
+    retry: false,
+  });
+
+  // Üst seviye değişince bağımlı seçimleri sıfırla.
+  function changeSubject(v: string) {
+    setSubject(v);
+    setUnit("");
+    setTopic("");
+  }
+  function changeUnit(v: string) {
+    setUnit(v);
+    setTopic("");
+  }
 
   const defaults = useMemo<JsonObj>(() => {
     if (isAdvanced) return {};
@@ -317,9 +345,9 @@ function IceAktar() {
   function copyPrompt() {
     navigator.clipboard
       .writeText(
-        preset.questionTarget ?
-          questionImportPrompt(preset.questionTarget, Number(count) || 10, importLocks)
-        : buildPrompt(table, columns, defaults, Number(count) || 10, preset.rules),
+        preset.questionTarget
+          ? questionImportPrompt(preset.questionTarget, Number(count) || 10, importLocks)
+          : buildPrompt(table, columns, defaults, Number(count) || 10, preset.rules),
       )
       .then(() => toast.success("Prompt panoya kopyalandı"));
   }
@@ -327,9 +355,9 @@ function IceAktar() {
     navigator.clipboard
       .writeText(
         JSON.stringify(
-          preset.questionTarget ? questionImportTemplate(preset.questionTarget, importLocks) : (
-            template(columns, defaults)
-          ),
+          preset.questionTarget
+            ? questionImportTemplate(preset.questionTarget, importLocks)
+            : template(columns, defaults),
           null,
           2,
         ),
@@ -347,9 +375,9 @@ function IceAktar() {
     }
     setParseError(null);
     setResults(
-      preset.questionTarget ?
-        validateQuestionImport(rows, columns, defaults, preset.questionTarget, importLocks)
-      : validate(rows, columns, defaults),
+      preset.questionTarget
+        ? validateQuestionImport(rows, columns, defaults, preset.questionTarget, importLocks)
+        : validate(rows, columns, defaults),
     );
   }
 
@@ -365,9 +393,9 @@ function IceAktar() {
     }
     setParseError(null);
     setResults(
-      preset.questionTarget ?
-        validateQuestionImport(rows, columns, defaults, preset.questionTarget, importLocks)
-      : validate(rows, columns, defaults),
+      preset.questionTarget
+        ? validateQuestionImport(rows, columns, defaults, preset.questionTarget, importLocks)
+        : validate(rows, columns, defaults),
     );
   }
 
@@ -494,17 +522,19 @@ function IceAktar() {
               <Combo
                 label="Ders"
                 value={subject}
-                onChange={setSubject}
+                onChange={changeSubject}
                 options={subjectsQ.data ?? []}
                 placeholder="Ders seç/yaz…"
+                hint={`${(subjectsQ.data ?? []).length} ders`}
               />
               {isKamubase ? (
                 <Combo
                   label="Ünite"
                   value={unit}
-                  onChange={setUnit}
+                  onChange={changeUnit}
                   options={unitsQ.data ?? []}
-                  placeholder="Ünite seç/yaz…"
+                  placeholder={subject ? "Ünite seç/yaz…" : "Önce ders seç"}
+                  hint={subject ? `${(unitsQ.data ?? []).length} ünite` : undefined}
                 />
               ) : null}
               <Combo
@@ -512,7 +542,8 @@ function IceAktar() {
                 value={topic}
                 onChange={setTopic}
                 options={topicsQ.data ?? []}
-                placeholder="Konu seç/yaz…"
+                placeholder={subject ? "Konu seç/yaz…" : "Önce ders seç"}
+                hint={subject ? `${(topicsQ.data ?? []).length} konu` : "ders seçilince dolar"}
               />
             </div>
           ) : null}
@@ -711,16 +742,18 @@ function Combo({
   onChange,
   options,
   placeholder,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: string[];
   placeholder?: string;
+  hint?: string;
 }) {
   const listId = `dl-${label}-${useMemo(() => Math.random().toString(36).slice(2), [])}`;
   return (
-    <Field label={label}>
+    <Field label={hint ? `${label} · ${hint}` : label}>
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}

@@ -22,9 +22,8 @@ type ServiceAccount = {
 };
 
 function serviceAccount(): ServiceAccount {
-  const raw =
-    process.env.GEMINI_SERVICE_ACCOUNT_JSON_BASE64 ?
-      Buffer.from(process.env.GEMINI_SERVICE_ACCOUNT_JSON_BASE64, "base64").toString("utf8")
+  const raw = process.env.GEMINI_SERVICE_ACCOUNT_JSON_BASE64
+    ? Buffer.from(process.env.GEMINI_SERVICE_ACCOUNT_JSON_BASE64, "base64").toString("utf8")
     : process.env.GEMINI_SERVICE_ACCOUNT_JSON;
   if (!raw) {
     throw new Error(
